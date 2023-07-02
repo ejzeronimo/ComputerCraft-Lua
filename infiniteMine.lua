@@ -7,21 +7,27 @@
 
 
 -- NOTE: classes and objects
+
+--- @class Coordinate
 Coordinate = {
-    position = {
-        x = 0,
-        y = 0,
-        z = 0
-    },
-    direction = {
-        x = 0,
-        y = 0,
-        z = 0
-    },
+    position = vector.new(0, 0, 0),
+    direction = vector.new(0, 0, 0),
+    __tostring = function(self)
+        return "position: " .. tostring(self.position) .. " heading: " .. tostring(self.direction)
+    end,
     new = function(self, o)
         o = o or {}
         setmetatable(o, self)
         self.__index = self
+
+        if o.position == nil then
+            o.position = vector.new(0, 0, 0)
+        end
+
+        if o.direction == nil then
+            o.direction = vector.new(0, 0, 0)
+        end
+
         return o
     end
 }
@@ -37,6 +43,20 @@ Config = {
     end
 }
 
+-- NOTE: globals
+args = { ... }
+configPath = "./mine.config"
+configFile = nil
+config = Config:new()
+
+scaffolding = {
+    "minecraft:cobbled_deepslate"
+}
+
+height = 4
+length = 4
+width = 4
+
 -- NOTE: functions
 stdLog = {
     error = function(message)
@@ -44,90 +64,205 @@ stdLog = {
     end
 }
 
-safeTurtle = {
+--- the position information about the turtle
+turtleTelemetry = {
+    --- coordinate relative to where the turtle was first placed
+    --- @type Coordinate
+    localCoord = Coordinate:new({
+        position = vector.new(0, 0, 0),
+        direction = vector.new(0, 0, 1)
+    }),
+    --- function to update the local position forward one block
     forward = function()
-        local success, reason = turtle.forward()
-        local fail = 0
-
-        while not success and fail < 3 do
-            -- try to mine, there might be a block
-            safeTurtle.dig()
-            success, reason = turtle.forward()
-
-            fail = fail + 1
-            sleep(0)
-        end
-
-        -- we failed, print an error
-        if fail == 3 then
-            printError("ERROR: could not move forward, reason: " .. reason)
-
-            return false, reason
-        end
-
-        return true
+        turtleTelemetry.localCoord.position = turtleTelemetry.localCoord.position + turtleTelemetry.localCoord.direction
     end,
+    --- function to update the local position backward one block
     back = function()
-        local success, reason = turtle.back()
-        local fail = 0
-
-        while not success and fail < 3 do
-            -- turn around
-            turtle.turnLeft()
-            turtle.turnLeft()
-
-            -- try to mine, there might be a block
-            safeTurtle.dig()
-
-            -- turn around
-            turtle.turnRight()
-            turtle.turnRight()
-
-            success, reason = turtle.back()
-
-            fail = fail + 1
-            sleep(0)
-        end
-
-        -- we failed, print an error
-        if fail == 3 then
-            printError("ERROR: could not move forward, reason: " .. reason)
-
-            return false, reason
-        end
-
-        return true
+        turtleTelemetry.localCoord.position = turtleTelemetry.localCoord.position - turtleTelemetry.localCoord.direction
     end,
+    --- function to update the local position to face left 90 degress
+    left = function()
+        turtleTelemetry.localCoord.direction = vector.new(
+        --- @diagnostic disable: undefined-field
+            turtleTelemetry.localCoord.direction.x * math.cos(-math.pi / 2) +
+            turtleTelemetry.localCoord.direction.z * math.sin(-math.pi / 2),
+            turtleTelemetry.localCoord.direction.y,
+            -turtleTelemetry.localCoord.direction.x * math.sin(-math.pi / 2) +
+            turtleTelemetry.localCoord.direction.z * math.cos(-math.pi / 2)
+        --- @diagnostic enable: undefined-field
+        )
+
+        turtleTelemetry.localCoord.direction = turtleTelemetry.localCoord.direction:round()
+    end,
+    --- function to update the local position to face right 90 degress
+    right = function()
+        turtleTelemetry.localCoord.direction = vector.new(
+        --- @diagnostic disable: undefined-field
+            turtleTelemetry.localCoord.direction.x * math.cos(math.pi / 2) +
+            turtleTelemetry.localCoord.direction.z * math.sin(math.pi / 2),
+            turtleTelemetry.localCoord.direction.y,
+            -turtleTelemetry.localCoord.direction.x * math.sin(math.pi / 2) +
+            turtleTelemetry.localCoord.direction.z * math.cos(math.pi / 2)
+        --- @diagnostic enable: undefined-field
+        )
+
+        turtleTelemetry.localCoord.direction = turtleTelemetry.localCoord.direction:round()
+    end,
+    --- function to update the local position upward one block
     up = function()
-        local success, reason = turtle.up()
-        local fail = 0
-
-        while not success and fail < 3 do
-            -- try to mine, there might be a block
-            safeTurtle.digUp()
-            success, reason = turtle.up()
-
-            fail = fail + 1
-            sleep(0)
-        end
-
-        -- we failed, print an error
-        if fail == 3 then
-            printError("ERROR: could not move up, reason: " .. reason)
-
-            return false, reason
-        end
-
-        return true
+        turtleTelemetry.localCoord.position = turtleTelemetry.localCoord.position + vector.new(0, 1, 0)
     end,
+    --- function to update the local position downward one block
     down = function()
-        local success, reason = turtle.down()
+        turtleTelemetry.localCoord.position = turtleTelemetry.localCoord.position + vector.new(0, -1, 0)
+    end,
+}
+
+inventoryManager = {
+    selectScaffold = function()
+        local oldSelect = turtle.getSelectedSlot()
+
+        -- for each turtle slot
+        for i = 1, 16, 1 do
+            for j, v in ipairs(scaffolding) do
+                local data = turtle.getItemDetail(i)
+                if data and data.name == v then
+                    turtle.select(i)
+                    break
+                end
+            end
+        end
+
+        return function()
+            turtle.select(oldSelect)
+        end
+    end,
+}
+
+--- functions with smart and fallback modes built in, extension of the turtle api
+safeTurtle = {
+    --- move the turtle forward
+    --- @return boolean success if move was successful
+    --- @return string|nil errorMessage the reason no move was made
+    forward = function()
+        return safeTurtle.__move(turtle.forward, safeTurtle.dig, turtleTelemetry.forward)
+    end,
+    --- move the turtle backward
+    --- @return boolean success if move was successful
+    --- @return string|nil errorMessage the reason no move was made
+    back = function()
+        local function d()
+            safeTurtle.right()
+            safeTurtle.right()
+
+            safeTurtle.dig()
+
+            safeTurtle.right()
+            safeTurtle.right()
+        end
+
+        return safeTurtle.__move(turtle.back, d, turtleTelemetry.back)
+    end,
+    --- move the turtle up
+    --- @return boolean success if move was successful
+    --- @return string|nil errorMessage the reason no move was made
+    up = function()
+        return safeTurtle.__move(turtle.up, safeTurtle.digUp, turtleTelemetry.up)
+    end,
+    --- move the turtle down
+    --- @return boolean success if move was successful
+    --- @return string|nil errorMessage the reason no move was made
+    down = function()
+        return safeTurtle.__move(turtle.down, safeTurtle.digDown, turtleTelemetry.down)
+    end,
+    --- rotate the turtle left
+    left = function()
+        turtle.turnLeft()
+        turtleTelemetry.left()
+    end,
+    --- rotate the turtle right
+    right = function()
+        turtle.turnRight()
+        turtleTelemetry.right()
+    end,
+    --- dig in front of the turtle
+    --- @return boolean success if a block was broken
+    --- @return string|nil errorMessage the reason no block was broken
+    dig = function()
+        return safeTurtle.__dig(turtle.dig, turtle.inspect)
+    end,
+    --- dig above the turtle
+    --- @return boolean success if a block was broken
+    --- @return string|nil errorMessage the reason no block was broken
+    digUp = function()
+        return safeTurtle.__dig(turtle.digUp, turtle.inspectUp)
+    end,
+    --- dig below the turtle
+    --- @return boolean success if a block was broken
+    --- @return string|nil errorMessage the reason no block was broken
+    digDown = function()
+        return safeTurtle.__dig(turtle.digDown, turtle.inspectDown)
+    end,
+    --- place a block in front
+    --- @param text? string text to put on a sign
+    --- @return boolean success if a block was placed
+    --- @return string|nil errorMessage the reason no block was placed
+    place = function(text)
+        return safeTurtle.__place(turtle.place, turtle.inspect, text)
+    end,
+    --- place a block above
+    --- @param text? string text to put on a sign
+    --- @return boolean success if a block was placed
+    --- @return string|nil errorMessage the reason no block was placed
+    placeUp = function(text)
+        return safeTurtle.__place(turtle.placeUp, turtle.inspectUp, text)
+    end,
+    --- place a block below
+    --- @param text? string text to put on a sign
+    --- @return boolean success if a block was placed
+    --- @return string|nil errorMessage the reason no block was placed
+    placeDown = function(text)
+        return safeTurtle.__place(turtle.placeDown, turtle.inspectDown, text)
+    end,
+    --- function that checks for fluid in front of and above turtle. Places blocks to remove them
+    stopFluid = function()
+        -- check for fluids above us
+        local present, info = turtle.inspectUp()
+        local reset
+
+        if present and info.state.level ~= nil then
+            reset = inventoryManager.selectScaffold()
+
+            safeTurtle.placeUp()
+
+            reset()
+        end
+
+        -- check for fluids in front of us
+        present, info = turtle.inspect()
+
+        if present and info.state.level ~= nil then
+            reset = inventoryManager.selectScaffold()
+
+            safeTurtle.place()
+
+            reset()
+        end
+    end,
+    --- private move function
+    --- @param m function the directional move function to invoke
+    --- @param d function the directional dig function to invoke
+    --- @param t function the directional telemetry function to invoke
+    --- @return boolean success if move was successful
+    --- @return string|nil errorMessage the reason no move was made
+    __move = function(m, d, t)
+        local success, reason = m()
         local fail = 0
 
         while not success and fail < 3 do
             -- try to mine, there might be a block
-            safeTurtle.digDown()
-            success, reason = turtle.down()
+            d()
+            success, reason = m()
 
             fail = fail + 1
             sleep(0)
@@ -135,23 +270,29 @@ safeTurtle = {
 
         -- we failed, print an error
         if fail == 3 then
-            printError("ERROR: could not move down, reason: " .. reason)
+            printError("ERROR: could not move, reason: " .. reason)
 
             return false, reason
         end
 
+        t()
         return true
     end,
-    dig = function()
-        local success, reason = turtle.dig()
-        local present, info = turtle.inspect()
+    --- private dig function
+    --- @param d function the directional dig function to invoke
+    --- @param i function the directional inspect function to invoke
+    --- @return boolean success if a block was broken
+    --- @return string|nil errorMessage the reason no block was broken
+    __dig = function(d, i)
+        local success, reason = d()
+        local present, info = i()
         local retry = 0
 
-        while present and retry < 32 do
+        while (present and info.state.level == nil) and retry < 32 do
             -- mine the block
-            success, reason = turtle.dig()
+            success, reason = d()
             -- then check if it is still there
-            present, info = turtle.inspect()
+            present, info = i()
 
             retry = retry + 1
             sleep(0)
@@ -159,64 +300,22 @@ safeTurtle = {
 
         -- we failed, print an error
         if retry == 32 then
-            printError("ERROR: could not break front block " .. info.name .. ", reason: " .. reason)
+            printError("ERROR: could not break block " .. info.name .. ", reason: " .. reason)
 
             return false, reason
         end
 
         return true
     end,
-    digUp = function()
-        local success, reason = turtle.digUp()
-        local present, info = turtle.inspectUp()
-        local retry = 0
-
-        while present and retry < 32 do
-            -- mine the block
-            success, reason = turtle.digUp()
-            -- then check if it is still there
-            present, info = turtle.inspectUp()
-
-            retry = retry + 1
-            sleep(0)
-        end
-
-        -- we failed, print an error
-        if retry == 32 then
-            printError("ERROR: could not break above block " .. info.name .. ", reason: " .. reason)
-
-            return false, reason
-        end
-
-        return true
-    end,
-    digDown = function()
-        local success, reason = turtle.digDown()
-        local present, info = turtle.inspectDown()
-        local retry = 0
-
-        while present and retry < 32 do
-            -- mine the block
-            success, reason = turtle.digDown()
-            -- then check if it is still there
-            present, info = turtle.inspectDown()
-
-            retry = retry + 1
-            sleep(0)
-        end
-
-        -- we failed, print an error
-        if retry == 32 then
-            printError("ERROR: could not break below block " .. info.name .. ", reason: " .. reason)
-
-            return false, reason
-        end
-
-        return true
-    end,
-    place = function(text)
-        local present, info = turtle.inspect()
-        local success, reason = turtle.place(text)
+    --- private place function
+    --- @param p function the directional place function to invoke
+    --- @param i function the directional inspect function to invoke
+    --- @param t? string text to pass to the place function
+    --- @return boolean success if a block was placed
+    --- @return string|nil errorMessage the reason no block was placed
+    __place = function(p, i, t)
+        local present, info = i()
+        local success, reason = p(t)
         local fail = 0
 
         while (not success and present) and fail < 3 do
@@ -224,8 +323,8 @@ safeTurtle = {
             safeTurtle.dig()
 
             -- retry the place
-            present, info = turtle.inspect()
-            success, reason = turtle.place(text)
+            present, info = i()
+            success, reason = p(t)
 
             fail = fail + 1
             sleep(0)
@@ -233,64 +332,79 @@ safeTurtle = {
 
         -- we failed, print an error
         if fail == 3 then
-            printError("ERROR: could not place front block, reason: " .. reason)
+            printError("ERROR: could not place block, reason: " .. reason)
 
             return false, reason
         end
 
         return true
     end,
-    placeUp = function(text)
-        local present, info = turtle.inspectUp()
-        local success, reason = turtle.placeUp(text)
-        local fail = 0
+}
 
-        while (not success and present) and fail < 3 do
-            -- try to mine, there might be a block
-            safeTurtle.digUp()
+---  functions to help with the mining of a cubic volume
+turtleMine = {
+    --- hidden variable for the state of the uturn
+    __isTurnLeft = false,
+    --- function to dig, stops potential fluids and mines below to save fuel
+    --- @param h number the current height of the turtle relative to the mining area
+    smartDig = function(h)
+        -- check for fluids
+        safeTurtle.stopFluid()
 
-            -- retry the place
-            present, info = turtle.inspectUp()
-            success, reason = turtle.placeUp(text)
+        -- dig in front for the move
+        safeTurtle.dig()
 
-            fail = fail + 1
-            sleep(0)
-        end
-
-        -- we failed, print an error
-        if fail == 3 then
-            printError("ERROR: could not place above block, reason: " .. reason)
-
-            return false, reason
-        end
-
-        return true
-    end,
-    placeDown = function(text)
-        local present, info = turtle.inspectDown()
-        local success, reason = turtle.placeDown(text)
-        local fail = 0
-
-        while (not success and present) and fail < 3 do
-            -- try to mine, there might be a block
+        if h <= (height - 1) then
+            -- if we have more one more layer below us, dig below
+            print("smartDig was smart!")
             safeTurtle.digDown()
-
-            -- retry the place
-            present, info = turtle.inspectDown()
-            success, reason = turtle.placeDown(text)
-
-            fail = fail + 1
-            sleep(0)
+        end
+    end,
+    --- function to turn around and start new line for mining, is "safe"
+    --- @param w number the current horizontal distance into the mining area
+    --- @param h number the current height of the turtle relative to the mining area
+    uTurn = function(w, h)
+        local result = math.fmod(w, 2) == 0
+        if turtleMine.__isTurnLeft then
+            result = not result
         end
 
-        -- we failed, print an error
-        if fail == 3 then
-            printError("ERROR: could not place below block, reason: " .. reason)
-
-            return false, reason
+        safeTurtle.stopFluid()
+        -- if even or odd
+        if result then
+            safeTurtle.left()
+        else
+            safeTurtle.right()
         end
 
-        return true
+        turtleMine.smartDig(h)
+        safeTurtle.forward()
+
+        safeTurtle.stopFluid()
+        -- if even or odd
+        if result then
+            safeTurtle.left()
+        else
+            safeTurtle.right()
+        end
+    end,
+    --- function to move to the next horizontal slice, is "safe"
+    moveDown = function()
+        -- check for fluids
+        safeTurtle.stopFluid()
+
+        safeTurtle.digDown()
+        safeTurtle.down()
+        safeTurtle.digDown()
+        safeTurtle.down()
+        safeTurtle.right()
+        safeTurtle.right()
+
+        if math.fmod(width, 2) == 0 and turtleMine.__isTurnLeft == false then
+            turtleMine.__isTurnLeft = true
+        else
+            turtleMine.__isTurnLeft = false
+        end
     end
 }
 
@@ -301,18 +415,6 @@ function getToolsAndFuelStore()
         "sophisticatedbackpacks:backpack"
     }
 end
-
--- chunk controller ALWAYS on the left side
-
--- purge the current peripheral if it is there
-if peripheral.isPresent("right") then
-end
-
-turtle.select(1)
-length = args[1]
-width = args[2]
-depth = args[3]
-invert = false
 
 function purgeInventory()
     turtle.select(1)
@@ -361,94 +463,58 @@ function checkTurtle()
     turtle.select(1)
 end
 
-function changeLane(i, h)
-    result = math.fmod(i, 2) == 0
-    if invert then
-        result = not result
-    end
-    if result then
-        --even
-        turtle.turnLeft()
-        turtle.dig()
-        if h <= (depth - 1) then
-            turtle.digDown()
-        end
-        turtle.forward()
-        turtle.turnLeft()
-    else
-        --odd
-        turtle.turnRight()
-        turtle.dig()
-        if h <= (depth - 1) then
-            turtle.digDown()
-        end
-        turtle.forward()
-        turtle.turnRight()
-    end
-    modem.transmit(3, 1, os.getComputerLabel() .. " changed lane " .. os.clock())
-    checkTurtle()
-end
-
-function changeLevel()
-    turtle.digDown()
-    turtle.down()
-    turtle.digDown()
-    turtle.down()
-    turtle.turnRight()
-    turtle.turnRight()
-    modem.transmit(3, 1, os.getComputerLabel() .. " changed level " .. os.clock())
-    if math.fmod(width, 2) == 0 and invert == false then
-        invert = true
-    else
-        invert = false
-    end
-    checkTurtle()
-end
-
 -- NOTE: the setup
-args = { ... }
-configFile = nil
-config = Config:new()
-
--- if the path is wrong
-if #args < 1 then
-    printError("ERROR: need to give a path to a config file")
-    return
-end
-
 -- if the path is invalid
-if not fs.exists(args[1]) then
+if not fs.exists(configPath) then
     printError("ERROR: invalid path to config")
     return
 end
 
+-- chunk controller ALWAYS on the left side
+
+-- purge the current peripheral if it is there
+if peripheral.isPresent("right") then
+end
+
 print("Initial checks past")
 
+
+
 -- NOTE: the main loop
-local h = 1
-while h < tonumber(depth) + 1 do
-    print(h)
-    for i = 1, width, 1 do
-        for j = 1, length - 1, 1 do
-            --break block in front move forward
-            turtle.dig()
-            if h <= (depth - 1) then
-                turtle.digDown()
-            end
-            turtle.forward()
-            checkTurtle()
+-- until we get the stop message
+--while true do
+for h = 1, height, 2 do
+    for w = 1, width, 1 do
+        for l = 1, (length - 1), 1 do
+            -- dig the block in front
+            turtleMine.smartDig(h)
+
+            -- move forward
+            safeTurtle.forward()
         end
-        --at end of line
-        if i <= (width - 1) then
-            changeLane(i, h)
+
+        --at end of column
+        if w <= (width - 1) then
+            turtleMine.uTurn(w, h)
         end
     end
-    --at end of level
-    if h <= (depth - 1) then
-        changeLevel()
+
+    if h <= (height - 1) then
+        print("dig below current: " .. h .. " target: " .. height)
+        safeTurtle.digDown()
+    end
+
+    -- at end of level
+    print("current: " .. h .. " target: " .. height)
+    if h < (height - 1) then
+        print("called")
+        turtleMine.moveDown()
         h = h + 1
     end
-    h = h + 1
 end
-purgeInventory()
-modem.transmit(3, 1, os.getComputerLabel() .. " mission complete " .. os.clock())
+
+-- TODO: make turtle pathfind to new chunk
+--moveToNewChunk()
+--end
+
+-- NOTE: after the stop message was received

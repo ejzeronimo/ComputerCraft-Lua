@@ -1,6 +1,6 @@
 {
     "Lua.diagnostics.disable": [
-        "lowercase-global",
+        "lowercase-global"
     ],
     "Lua.diagnostics.severity": {
         "redefined-local": "Warning"

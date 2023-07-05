@@ -13,6 +13,17 @@
 --]]
 
 
+TurtleNet = require("lib.TurtleNet")
+Telemetry = require("lib.Telemetry")
+
+-- NOTE: application implementations
+
+local function getModem()
+    return toolChanger.equipModem(), peripheral.wrap("right")
+end
+
+TurtleNet.setGetModem(getModem)
+
 -- NOTE: classes and objects
 
 --- @class Coordinate
@@ -51,165 +62,6 @@ Config = {
 }
 
 -- NOTE: functions
---- functions for wireless communication
-turtleNet = {
-    --- function to start, modify, and end a repair tool request
-    --- @return boolean valid state of the given request
-    --- @return function refresh function to refresh request
-    --- @return function comlete function to complete the request, optional boolean
-    requestToolRepair = function()
-        --- function to end a tool repair event
-        local function completeToolRepair()
-            -- get the modem
-            local success, modem = turtleNet.__start()
-
-            if success and modem then
-                modem.transmit(turtleNet.__channel, turtleNet.__channel, {
-                    type = "request",
-                    origin = os.computerID(),
-                    target = -1,
-                    timestamp = os.epoch("ingame"),
-                    request = {
-                        type = "stop/repairTool"
-                    }
-                })
-
-                -- repeat until we get a response
-                local message
-                repeat
-                    message = turtleNet.__waitForResponse()
-                until message.response.type == "stop/repairTool" and message.response.result
-            end
-
-            turtleNet.__stop()
-        end
-
-
-        --- function to start or refresh tool repair
-        --- @return boolean valid state of the given request
-        --- @return function refresh function to refresh request
-        --- @return function comlete function to complete the request, optional boolean
-        local function startOrRefreshToolRepair()
-            -- get the modem
-            local success, modem = turtleNet.__start()
-            local result = false
-
-            if success and modem then
-                --- @type Message
-                local data = {
-                    type = "request",
-                    origin = os.computerID(),
-                    target = -1,
-                    timestamp = os.epoch("ingame"),
-                    request = {
-                        type = "start/repairTool"
-                    }
-                }
-
-                modem.transmit(turtleNet.__channel, turtleNet.__channel, data)
-
-                -- repeat until we get a response
-                local message
-                repeat
-                    message = turtleNet.__waitForResponse()
-                until message.response.type == "start/repairTool" and (message.response.result ~= nil)
-
-                result = message.response.result
-            end
-
-            turtleNet.__stop()
-            return result, startOrRefreshToolRepair, completeToolRepair
-        end
-
-        -- start the chain
-        local result = startOrRefreshToolRepair()
-        return result, startOrRefreshToolRepair, completeToolRepair
-    end,
-    --- private number for the turtleNet channel
-    --- @type integer
-    __channel = 543178,
-    --- @class Message standard messages between turtlenet computers
-    __message = {
-        --- @alias messageType "request" | "response"
-        --- @type messageType the type of message
-        type = nil,
-        --- @type integer id of the computer sending the message
-        origin = nil,
-        --- @type integer id of the computer receiving the message or -1
-        target = nil,
-        --- @type integer epoch of the current time
-        timestamp = os.epoch("ingame"),
-        --- @type MessageRequest? the request object
-        --- @class MessageRequest
-        request = {
-            --- @alias requestType "start/repairTool" | "stop/repairTool"
-            --- @type requestType the type of request
-            type = nil,
-        },
-        --- @type MessageResponse? the response object
-        --- @class MessageResponse
-        response = {
-            --- @type requestType request to respond to
-            type = nil,
-            --- @type boolean whether the request was accepted or not
-            result = nil
-        }
-    },
-    --- private function that waits for a modem message
-    --- @return Message message a turtleNet message to read
-    __waitForResponse = function()
-        -- repeat until we get a response
-        local event, side, channel, replyChannel, message, distance
-        repeat
-            event, side, channel, replyChannel, message, distance = os.pullEvent("modem_message")
-        until channel == turtleNet.__channel and message.target == os.computerID()
-
-        return message
-    end,
-    --- starts the turtleNet instance
-    --- @return boolean success whether the oprtation worked
-    --- @return Modem? modem the modem peripheral
-    __start = function()
-        -- get the modem
-        local success, modem = turtleNet.__getModem()
-
-        if success and modem then
-            while not modem.isOpen(turtleNet.__channel) do
-                modem.open(turtleNet.__channel)
-                sleep(0)
-            end
-
-            return true, modem
-        end
-
-        return false
-    end,
-    --- stops the turtleNet instance
-    --- @return boolean success whether the oprtation worked
-    --- @return Modem? modem the modem peripheral
-    __stop = function()
-        -- get the modem
-        local success, modem = turtleNet.__getModem()
-
-        if success and modem then
-            while modem.isOpen(turtleNet.__channel) do
-                modem.close(turtleNet.__channel)
-                sleep(0)
-            end
-
-            return true, modem
-        end
-
-        return false
-    end,
-    --- private implemenatation, used for no coupling, need to return a wrapped modem
-    --- @return boolean success the success of getting the modem
-    --- @return Modem? modem returns the modem
-    __getModem = function()
-        ---@diagnostic disable-next-line: return-type-mismatch
-        return toolChanger.equipModem(), peripheral.wrap("right")
-    end
-}
 
 --- the position information about the turtle, decoupled
 turtleTelemetry = {
@@ -391,7 +243,7 @@ inventoryManager = {
         -- just in case we have the wrong item
         while not success do
             -- request tool fix
-            local valid, refreshRequest, completeRequest = turtleNet.requestToolRepair()
+            local valid, refreshRequest, completeRequest = TurtleNet.client.requestToolRepair()
 
             -- while we cannot
             while not valid do

@@ -1,5 +1,5 @@
 --- library of functions for TurtleNet
-TurtleNet = {
+local TurtleNet = {
     -- clientside functions
     client = {}
 }
@@ -7,13 +7,20 @@ TurtleNet = {
 -- NOTE: classes and types
 
 --- @package
---- @alias t_GetModem fun(): boolean, Modem
+--- @alias getModem_t fun(): boolean, Modem
 
 --- @package
---- @class t_Message standard messages between turtlenet computers
-local __message = {
-    --- @alias messageType "request" | "response"
-    --- @type messageType the type of message
+--- @alias channel_t integer | `543178` channel to use for TurtleNet
+
+--- @package
+--- @alias turtleNetConfig_t { getModem: getModem_t, channel: channel_t }
+
+--- @type turtleNetMessage_t
+--- @class turtleNetMessage_t
+TurtleNet.Message = {
+    --- @package
+    --- @alias messageType_t `"request"` | `"response"`
+    --- @type messageType_t the type of message
     type = nil,
     --- @type integer id of the computer sending the message
     origin = nil,
@@ -24,44 +31,46 @@ local __message = {
     --- @type MessageRequest? the request object
     --- @class MessageRequest
     request = {
-        --- @alias requestType "start/repairTool" | "stop/repairTool"
-        --- @type requestType the type of request
+        --- @package
+        --- @alias requestType_t `"start/repairTool"` | `"stop/repairTool"`
+        --- @type requestType_t the type of request
         type = nil,
     },
     --- @type MessageResponse? the response object
     --- @class MessageResponse
     response = {
-        --- @type requestType request to respond to
+        --- @type requestType_t request to respond to
         type = nil,
         --- @type boolean whether the request was accepted or not
         result = nil
-    }
+    },
+    --- makes a new instance of this object
+    --- @return turtleNetMessage_t
+    new = function(self, o)
+        o = o or {}
+        setmetatable(o, self)
+        self.__index = self
+        return o
+    end
 }
 
 -- NOTE: private variables
 
 --- @package
---- private number for the turtleNet channel
---- @type integer
-local __channel = 543178
-
---- @package
---- private implemenatation, used for no coupling, need to return a wrapped modem
---- @type t_GetModem
-local __getModem
-
+--- @type turtleNetConfig_t config for this library
+local __config
 
 -- NOTE: private functions
 
 --- @package
 --- private function that waits for a modem message
---- @return t_Message message a turtleNet message to read
+--- @return turtleNetMessage_t message a turtleNet message to read
 local function __waitForResponse()
     -- repeat until we get a response
     local event, side, channel, replyChannel, message, distance
     repeat
         event, side, channel, replyChannel, message, distance = os.pullEvent("modem_message")
-    until channel == __channel and message.target == os.computerID()
+    until channel == __config.channel and message.target == os.computerID()
 
     return message
 end
@@ -72,12 +81,11 @@ end
 --- @return Modem? modem the modem peripheral
 local function __start()
     -- get the modem
-    local success, modem = __getModem()
+    local success, modem = __config.getModem()
 
     if success and modem then
-        while not modem.isOpen(__channel) do
-            modem.open(__channel)
-            sleep(0)
+        while not modem.isOpen(__config.channel) do
+            modem.open(__config.channel)
         end
 
         return true, modem
@@ -92,12 +100,11 @@ end
 --- @return Modem? modem the modem peripheral
 local function __stop()
     -- get the modem
-    local success, modem = __getModem()
+    local success, modem = __config.getModem()
 
     if success and modem then
-        while modem.isOpen(__channel) do
-            modem.close(__channel)
-            sleep(0)
+        while modem.isOpen(__config.channel) do
+            modem.close(__config.channel)
         end
 
         return true, modem
@@ -106,13 +113,12 @@ local function __stop()
     return false
 end
 
-
 -- NOTE: public functions
 
---- application specific implemenatation of getting the modem
---- @param func t_GetModem function to implement
-function TurtleNet.setGetModem(func)
-    __getModem = func
+--- application specific function to set config
+--- @param config turtleNetConfig_t
+function TurtleNet.setConfig(config)
+    __config = config
 end
 
 --- function to start, modify, and end a repair tool request
@@ -125,16 +131,19 @@ function TurtleNet.client.requestToolRepair()
         -- get the modem
         local success, modem = __start()
 
+        --- @type turtleNetMessage_t
+        local data = {
+            type = "request",
+            origin = os.computerID(),
+            target = -1,
+            timestamp = os.epoch("ingame"),
+            request = {
+                type = "stop/repairTool"
+            }
+        }
+
         if success and modem then
-            modem.transmit(__channel, __channel, {
-                type = "request",
-                origin = os.computerID(),
-                target = -1,
-                timestamp = os.epoch("ingame"),
-                request = {
-                    type = "stop/repairTool"
-                }
-            })
+            modem.transmit(__config.channel, __config.channel, data)
 
             -- repeat until we get a response
             local message
@@ -157,7 +166,7 @@ function TurtleNet.client.requestToolRepair()
         local result = false
 
         if success and modem then
-            --- @type t_Message
+            --- @type turtleNetMessage_t
             local data = {
                 type = "request",
                 origin = os.computerID(),
@@ -168,7 +177,7 @@ function TurtleNet.client.requestToolRepair()
                 }
             }
 
-            modem.transmit(__channel, __channel, data)
+            modem.transmit(__config.channel, __config.channel, data)
 
             -- repeat until we get a response
             local message

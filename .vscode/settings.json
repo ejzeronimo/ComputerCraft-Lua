@@ -1,0 +1,13 @@
+{
+    "Lua.diagnostics.disable": [
+        "lowercase-global"
+    ],
+    "Lua.diagnostics.severity": {
+        "redefined-local": "Warning"
+    },
+    "Lua.runtime.version": "Lua 5.3",
+    "Lua.workspace.library": [
+        "C:/Users/Ethan_Zeronik/AppData/Roaming/Code/User/globalStorage/sumneko.lua/addonManager/addons/cc-tweaked/module/library"
+    ],
+    "Lua.workspace.checkThirdParty": false,
+}

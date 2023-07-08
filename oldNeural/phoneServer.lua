@@ -1,12 +1,12 @@
-modem = peripheral.wrap("back")
-args = {...}
+local modem = peripheral.wrap("back")
+local args = {...}
 
 if #args < 2 then
     print("Usage: server, isListen")
     return
 end
 
-port = tonumber(args[1])
+local port = tonumber(args[1])
 
 function toboolean(b)
     if b == "true" then

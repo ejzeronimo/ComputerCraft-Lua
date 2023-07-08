@@ -6,46 +6,46 @@ local TurtleNet = {
 
 -- NOTE: classes and types
 
---- @package
---- @alias getModem_t fun(): boolean, Modem
+--- @alias messageType_t  `"request"` the types of message turtlenet can send
+---| `"response"`
 
---- @package
---- @alias channel_t integer | `543178` channel to use for TurtleNet
+--- @enum requestType_t enum for all the commands/ actions turtlenet can use
+TurtleNet.REQUEST_TYPE = {
+    -- the tool repair enums
+    start_repairTool = "start/repairTool",
+    stop_repairTool = "stop/repairTool",
+}
 
---- @package
---- @alias turtleNetConfig_t { getModem: getModem_t, channel: channel_t }
+--- @class messageRequest_t request object for message schema
+--- @field type requestType_t the type of request
 
---- @type turtleNetMessage_t
---- @class turtleNetMessage_t
+--- @class messageResponse_t: messageRequest_t response object for message schema
+--- @field result boolean whether the request was accepted or not
+
+--- @alias getModem_t fun(): boolean, Modem function to equip the modem and return it
+
+--- @alias channel_t number | `54317` channel to use for turtlenet
+
+--- @class turtleNetConfig_t config for this library
+--- @field getModem getModem_t function to get the modem
+--- @field channel channel_t channel for turtlenet to use
+
+--- @class TurtleNet.Message external facing message class with constructor
 TurtleNet.Message = {
-    --- @package
-    --- @alias messageType_t `"request"` | `"response"`
     --- @type messageType_t the type of message
     type = nil,
-    --- @type integer id of the computer sending the message
+    --- @type number id of the computer sending the message
     origin = nil,
-    --- @type integer id of the computer receiving the message or -1
+    --- @type number id of the computer receiving the message or -1
     target = nil,
-    --- @type integer epoch of the current time
+    --- @type number epoch of the current time
     timestamp = os.epoch("ingame"),
-    --- @type MessageRequest? the request object
-    --- @class MessageRequest
-    request = {
-        --- @package
-        --- @alias requestType_t `"start/repairTool"` | `"stop/repairTool"`
-        --- @type requestType_t the type of request
-        type = nil,
-    },
-    --- @type MessageResponse? the response object
-    --- @class MessageResponse
-    response = {
-        --- @type requestType_t request to respond to
-        type = nil,
-        --- @type boolean whether the request was accepted or not
-        result = nil
-    },
+    --- @type messageRequest_t? the request object
+    request = nil,
+    --- @type messageResponse_t? the response object
+    response = nil,
     --- makes a new instance of this object
-    --- @return turtleNetMessage_t
+    --- @return TurtleNet.Message
     new = function(self, o)
         o = o or {}
         setmetatable(o, self)
@@ -56,15 +56,13 @@ TurtleNet.Message = {
 
 -- NOTE: private variables
 
---- @package
 --- @type turtleNetConfig_t config for this library
 local __config
 
 -- NOTE: private functions
 
---- @package
 --- private function that waits for a modem message
---- @return turtleNetMessage_t message a turtleNet message to read
+--- @return TurtleNet.Message message a turtleNet message to read
 local function __waitForResponse()
     -- repeat until we get a response
     local event, side, channel, replyChannel, message, distance
@@ -75,7 +73,6 @@ local function __waitForResponse()
     return message
 end
 
---- @package
 --- starts the turtleNet instance
 --- @return boolean success whether the oprtation worked
 --- @return Modem? modem the modem peripheral
@@ -94,7 +91,6 @@ local function __start()
     return false
 end
 
---- @package
 --- stops the turtleNet instance
 --- @return boolean success whether the oprtation worked
 --- @return Modem? modem the modem peripheral
@@ -131,7 +127,7 @@ function TurtleNet.client.requestToolRepair()
         -- get the modem
         local success, modem = __start()
 
-        --- @type turtleNetMessage_t
+        --- @type TurtleNet.Message
         local data = {
             type = "request",
             origin = os.computerID(),
@@ -166,7 +162,7 @@ function TurtleNet.client.requestToolRepair()
         local result = false
 
         if success and modem then
-            --- @type turtleNetMessage_t
+            --- @type TurtleNet.Message
             local data = {
                 type = "request",
                 origin = os.computerID(),

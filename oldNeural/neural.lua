@@ -1,6 +1,6 @@
 local modem = peripheral.wrap("top")
 local modules = peripheral.find("neuralInterface")
-args = {...}
+local args = {...}
 
 if #args < 1 then
     print("Usage: server")

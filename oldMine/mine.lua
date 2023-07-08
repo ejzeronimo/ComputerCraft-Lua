@@ -1,5 +1,5 @@
 local modem = peripheral.wrap("left")
-args = {...}
+local args = {...}
  
 if #args < 3 then
     print("Usage: quarry x:forward y:right z:up")
@@ -7,10 +7,10 @@ if #args < 3 then
 end
  
 turtle.select(1)
-length = args[1]
-width = args[2]
-depth = args[3]
-invert = false
+local length = args[1]
+local width = args[2]
+local depth = args[3]
+local invert = false
  
 function purgeInventory()
     turtle.select(1)
@@ -45,7 +45,7 @@ function checkTurtle()
         fuelTurtle()
     end
  
-    num = 0
+    local num = 0
     for i = 1, 16, 1 do
         if turtle.getItemCount(i) > 0 then
             num = num + 1
@@ -60,7 +60,7 @@ function checkTurtle()
 end
  
 function changeLane(i, h)
-    result = math.fmod(i, 2) == 0
+    local result = math.fmod(i, 2) == 0
     if invert then
         result = not result
     end

@@ -3,43 +3,32 @@ local InventoryManager = {}
 
 -- NOTE: classes and types
 
---- @package
---- @alias place_t fun(): boolean function to place a block
+--- @alias returnedItem_t turtleDetails|turtleDetailsDetailed|{name: string, count: number, [string]: any} catch all for item information returned
 
---- @package
---- @alias break_t fun(): boolean function to break a block
+--- function to get an array of items from a storage block
+--- @alias getItems_t fun(): returnedItem_t[]
 
---- @package
---- @alias suck_t fun(): boolean function to take item from the inventory
+--- function to to handle getting an item
+--- @alias getItemHandler_t fun(g: getItems_t, s: suckItem_t): boolean
 
---- @package
---- @alias drop_t fun(): boolean function to place item from the inventory
+--- @class remoteStorage_t
+--- @field item string the item name
+--- @field getItems getItems_t function to get the items
+--- @field placeStorage placeBlock_t function to place the storage block
+--- @field breakStorage breakBlock_t function to break the storage block
+--- @field dropItem dropItem_t function to put items into the storage block
+--- @field suckItem suckItem_t function to get items from the storage block
 
---- @package
---- @type item_t
---- @class item_t
-local item_t = {
-    --- the item name
-    item = ""
-}
-
---- @package
---- @type remoteStorage_t
---- @class remoteStorage_t: item_t
-local remoteStorage_t = {
-    --- is the item managed by another turtle
-    remotelyManaged = false
-}
-
---- @package
---- @alias inventorManagerConfig_t { blacklist: string[], remoteStorage: remoteStorage_t, place: place_t }
+--- @class inventorManagerConfig_t config for this library
+--- @field blacklist string[] array of items not to remotely store
+--- @field scaffolding string[] array for blocks the turtle might place
+--- @field minScaffolding number minimum number of blocks of scaffoling the turtle must have
+--- @field remoteStorage remoteStorage_t remoteStorage object
 
 -- NOTE: private variables
 
---- @package
---- @type inventorManagerConfig_t does things
+--- @type inventorManagerConfig_t config for the library
 local __config
-
 
 -- NOTE: private functions
 
@@ -58,29 +47,24 @@ local function __inList(arr, val)
     return false
 end
 
-local function __placeStorage()
-    -- place entangloporter
-    for i = 1, 16, 1 do
-        local data = turtle.getItemDetail(i)
-        if data and data.name == "mekanism:quantum_entangloporter" then
-            turtle.select(i)
-            safeTurtle.placeUp()
-            break
-        end
-    end
-end
-
-
 -- NOTE: public functions
+
+--- application specific function to set config
+--- @param config inventorManagerConfig_t
+function InventoryManager.setConfig(config)
+    __config = config
+end
 
 --- get a free slot in the turtle, or makes one
 --- @param name? string name of the item to check for
 --- @return number|nil index returns a number if successful or nil if failed
 function InventoryManager.getFreeSlot(name)
+    local count, space, data
+
     for i = 1, 16, 1 do
-        local count = turtle.getItemCount(i)
-        local space = turtle.getItemSpace(i)
-        local data = turtle.getItemDetail(i)
+        count = turtle.getItemCount(i)
+        space = turtle.getItemSpace(i)
+        data = turtle.getItemDetail(i)
 
         if count and data and name then
             if data.name == name and space ~= 0 then
@@ -96,119 +80,93 @@ function InventoryManager.getFreeSlot(name)
     return nil
 end
 
+--- find the item index given the name
+--- @param name string name of the item to check for
+--- @return number|nil index returns a number if successful or nil if failed
+function InventoryManager.findItem(name)
+    local data
+
+    for i = 1, 16, 1 do
+        data = turtle.getItemDetail(i)
+
+        if data and data.name == name then
+            return i
+        end
+    end
+
+    return nil
+end
+
 --- empties the inventory
 function InventoryManager.emptyInventory()
     local hasScaffold = false
+    local item
 
-    __placeStorage()
-
-    -- TODO: make this ask for permission first
+    -- place the storage block
+    __config.remoteStorage.placeStorage()
 
     -- go through and empty inventory
     for j = 1, 16, 1 do
-        local item = turtle.getItemDetail(j)
+        item = turtle.getItemDetail(j)
         -- if not a tool
-        if item and not __inList(__config.blacklist, item.name) then
-            if __inList(ToolChanger.__scaffolding, item.name) and (not hasScaffold and item.count >= 16) then
+        if item and not __inList(__config.blacklist, item.name) and item ~= __config.remoteStorage.item then
+            if __inList(__config.scaffolding, item.name) and (not hasScaffold and item.count >= __config.minScaffolding) then
                 -- do nothing
                 hasScaffold = true
             else
-                -- try to put it in the entangloporter
+                -- put it in the storage
                 turtle.select(j)
-                local success, error = turtle.dropUp()
+                __config.remoteStorage.dropItem()
+            end
+        end
+    end
 
-                while not success and error == "no space for items" do
-                    -- sleep for a bit
-                    sleep(.5)
+    -- break the storage block
+    __config.remoteStorage.breakStorage()
+end
+
+--- gets a new item, if no handler defined then it gets a new item
+--- @param item string the name of the item to replace
+--- @param handler? getItemHandler_t function to handle getting the new item
+function InventoryManager.getNewItem(item, handler)
+    local data, success, items = nil, false, nil
+
+    -- place the storage block
+    __config.remoteStorage.placeStorage()
+
+    -- select the old item, it must not pass the condition
+    for i = 1, 16, 1 do
+        data = turtle.getItemDetail(i, true)
+        if data and data.name == item then
+            turtle.select(i)
+
+            __config.remoteStorage.dropItem()
+            break
+        end
+    end
+
+
+    -- if there is an external handler
+    if handler then
+        while not success do
+            success = handler(__config.remoteStorage.getItems, __config.remoteStorage.suckItem)
+        end
+    else
+        while not success do
+            -- for each item in storage
+            items = __config.remoteStorage.getItems()
+
+            for k, v in pairs(items) do
+                if v.name == item then
+                    __config.remoteStorage.suckItem()
+                    success = true
                 end
             end
         end
     end
 
-    -- since this can be called anywhere in the code, we need to ensure that the right tool is on
-    local tool = ToolChanger.getCurrentTool()
-
-    ToolChanger.equipStandardMine()
-    safeTurtle.digUp()
-
-    switch = {
-        ["modem"] = function()
-            ToolChanger.equipModem()
-        end,
-        ["weakAutomata"] = function()
-            ToolChanger.equipSilkMine()
-        end,
-        ["minecraft:diamond_pickaxe"] = function()
-            -- do nothing
-        end,
-    }
-
-    switch[tool]()
-end
-
-function InventoryManager.getNewTool()
-    local success = false
-    local curTool = ToolChanger.getCurrentTool()
-
-    -- put down the remote storage
-    inventoryManager.__placeStorage()
-
-    -- get it as a peripheral
-    local remote = peripheral.wrap("top")
-
-    -- select the pickaxe
-    for i = 1, 16, 1 do
-        local data = turtle.getItemDetail(i)
-        if data and data.name == "minecraft:netherite_pickaxe" then
-            turtle.select(i)
-            break
-        end
-    end
-
-    -- just in case we have the wrong item
-    while not success do
-        -- request tool fix
-        local valid, refreshRequest, completeRequest = TurtleNet.client.requestToolRepair()
-
-        -- while we cannot
-        while not valid do
-            valid, refreshRequest, completeRequest = refreshRequest()
-            sleep(0)
-        end
-
-        turtle.dropUp()
-
-        -- while there is not a pickaxe with full health
-        ---@diagnostic disable-next-line: need-check-nil
-        local info = remote.getBufferItem()
-
-        while info.nbt.Damage ~= 0 and info.name ~= "minecraft:netherite_pickaxe" do
-            ---@diagnostic disable-next-line: need-check-nil
-            info = remote.getBufferItem()
-            sleep(0)
-        end
-
-        turtle.suckUp()
-
-        local data = turtle.getItemDetail(turtle.getSelectedSlot())
-
-        if data and data.name == "minecraft:netherite_pickaxe" then
-            completeRequest()
-
-            success = true
-        else
-            sleep(5)
-        end
-    end
-
-    -- equip pickaxe
-    if curTool ~= "minecraft:diamond_pickaxe" then
-        ToolChanger.equipStandardMine()
-    end
-
-    safeTurtle.digUp()
-
-    -- TODO: change tool back
+    -- break the block after we are done
+    __config.remoteStorage.breakStorage()
 end
 
 -- NOTE: export statement

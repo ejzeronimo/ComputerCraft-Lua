@@ -3,46 +3,35 @@ local ToolChanger = {}
 
 -- NOTE: classes and types
 
---- @package
---- @alias getFreeSlot_t fun(): integer|nil private implementation, used for no coupling, needs to return a slot or nil
+--- @alias getFreeSlot_t fun(): number|nil function that need to return a slot or nil
 
---- @package
---- @alias getNewItem_t fun(name: string): nil private implementation, used for no coupling, needs to get a new one of item given
+--- @alias getNewItem_t fun(name: string): nil function that needs to get a new one of item given
 
---- @package
---- @type peripheral_t
---- @class peripheral_t
-local peripheral_t = {
-    --- the item name of the peripheral
-    peripheral = ""
-}
+--- @class peripheral_t a peripheral a turtle might use, standalone
+--- @field peripheral string the item name of the peripheral
 
---- @package
---- @type peripheralSelect_t
---- @class peripheralSelect_t: peripheral_t
-local peripheralSelect_t = {
-    --- the item name to select when peripheral is equipped
-    select = ""
-}
+--- @class peripheralSelect_t: peripheral_t a peripheral a turtle might use, needs an item selected to be used properly
+--- @field select string the item name to select when peripheral is equipped
 
---- @package
---- @alias tool_t peripheral_t | peripheralSelect_t
+--- @alias tool_t peripheral_t | peripheralSelect_t union of all peripheral types
 
---- @package
---- @alias toolMap_t { standardMine: tool_t, [string]: tool_t }
+--- @class toolMap_t dictionary of inferred or directly defined tools
+--- @field standardMine tool_t tool to equip for most mining
+--- @field [string] tool_t any other special tools
 
---- @package
---- @alias toolChangerConfig_t { scaffolding: string[], toolMap: toolMap_t, getFreeSlot: getFreeSlot_t, getNewItem: getNewItem_t }
+--- @class toolChangerConfig_t config for this library
+--- @field scaffolding string[] array for blocks the turtle might place
+--- @field toolMap toolMap_t dictionary of tools the turtle should have
+--- @field getFreeSlot getFreeSlot_t function to get an index for a free slot
+--- @field getNewItem getNewItem_t function to get a new item
 
 -- NOTE: private variables
 
---- @package
 --- @type toolChangerConfig_t config for this library
 local __config
 
 -- NOTE: private functions
 
---- @package
 --- private function, iterates through inventory
 local function __getItem(name)
     -- for each turtle slot
@@ -160,7 +149,7 @@ end
 
 --- function to check the durability of any tool
 --- @param tool tool_t peripheral to equip
---- @param threshold integer percent at which the tool is deemed too damaged
+--- @param threshold number percent at which the tool is deemed too damaged
 function ToolChanger.checkTool(tool, threshold)
     local data
 
@@ -171,7 +160,7 @@ function ToolChanger.checkTool(tool, threshold)
     end
 
     ---@diagnostic disable-next-line: undefined-field
-    if data and data.durability < .1 then
+    if data and data.damage < threshold then
         __config.getNewItem(data.name)
     end
 end

@@ -1,5 +1,5 @@
-modem = peripheral.wrap("back")
-chest = peripheral.wrap("left")
+local modem = peripheral.wrap("back")
+local chest = peripheral.wrap("left")
 
 local fuel = "minecraft:coal"
 

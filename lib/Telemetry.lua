@@ -6,7 +6,7 @@ local Telemetry = {
 
 -- NOTE: classes and types
 
---- @class Telemetry.Coordinate
+--- @class Telemetry.Coordinate external facing coordinate class with constructor
 Telemetry.Coordinate = {
     --- @type Vector position in XYZ space
     position = nil,
@@ -36,7 +36,6 @@ Telemetry.Coordinate = {
 
 -- NOTE: private variables
 
---- @package
 --- coordinate relative to where the turtle was first placed
 --- @type Telemetry.Coordinate
 local localCoord = Telemetry.Coordinate:new({
@@ -47,6 +46,12 @@ local localCoord = Telemetry.Coordinate:new({
 -- NOTE: private functions
 
 -- NOTE: public functions
+
+--- function to update the local position forward one block
+--- @return Telemetry.Coordinate local the local coordinate
+function Telemetry.relative.getCoord()
+    return localCoord
+end
 
 --- function to update the local position forward one block
 function Telemetry.relative.forward()

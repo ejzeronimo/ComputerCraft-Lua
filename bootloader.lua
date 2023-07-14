@@ -90,7 +90,7 @@ if application then
                 fs.delete(value.name)
 
                 -- make the new file
-                local file = fs.open("./lib/" .. value.name, "w")
+                local file = fs.open("./" .. value.name, "w")
 
                 ---@diagnostic disable: need-check-nil
                 file.write(content)

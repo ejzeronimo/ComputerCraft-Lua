@@ -77,7 +77,8 @@ else
                 --- @cast result infMineConfig_t
                 config = result
 
-                config.mine.direction = vector.new(config.mine.direction.x, config.mine.direction.y, config.mine.direction.z)
+                config.mine.direction = vector.new(config.mine.direction.x, config.mine.direction.y,
+                    config.mine.direction.z)
                 config.mine.position = vector.new(config.mine.position.x, config.mine.position.y, config.mine.position.z)
             end
         end
@@ -219,13 +220,16 @@ SafeTurtle.setConfig({
                         --- @diagnostic enable: undefined-field
 
                         if curCharge == turtle.getFuelLevel() then
+                            -- DEBUG: this is not always putting up spent tablets
                             -- ran out of charge, get a new unit
                             break
                         end
                     end
                 end
 
-                turtle.dropUp()
+                while not turtle.dropUp() do
+                    -- do nothing
+                end
 
                 if turtle.getFuelLevel() == turtle.getFuelLimit() then
                     completeRequest()

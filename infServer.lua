@@ -90,6 +90,8 @@ TurtleNet.setConfig({
 
 local success = TurtleNet.server.start()
 
+monitor.clear()
+monitor.setCursorPos(1,1)
 term.redirect(monitor)
 
 print("server started")

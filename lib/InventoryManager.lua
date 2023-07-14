@@ -140,7 +140,9 @@ function InventoryManager.getNewItem(item, handler)
         if data and data.name == item then
             turtle.select(i)
 
-            __config.remoteStorage.dropItem()
+            while not __config.remoteStorage.dropItem() do
+                sleep(0)
+            end
             break
         end
     end

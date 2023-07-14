@@ -1,7 +1,7 @@
 --[[
     This downloads from GitHub the correct application and all Lib files
 
-    Psatebin link: https://pastebin.com/SX7mYFmk
+    Pastebin link: https://pastebin.com/SX7mYFmk
 --]]
 
 -- NOTE: types

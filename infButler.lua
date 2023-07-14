@@ -113,7 +113,7 @@ local function runSorter()
                 -- add a pickaxe
                 local items = aboveChest.list()
 
-                for i, v in ipairs(items) do
+                for i, v in pairs(items) do
                     -- if the item is a netherite pickaxe
                     if v.name == "minecraft:netherite_pickaxe" then
                         -- move to the other chest
@@ -158,7 +158,7 @@ local function runSorter()
                 -- add a cell
                 local items = aboveChest.list()
 
-                for i, v in ipairs(items) do
+                for i, v in pairs(items) do
                     -- if the item is a cell
                     if v.name == "mekanism:energy_tablet" then
                         -- move to the other chest

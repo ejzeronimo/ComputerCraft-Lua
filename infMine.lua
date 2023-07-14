@@ -154,6 +154,7 @@ InventoryManager.setConfig({
         "minecraft:netherite_pickaxe"
     },
     scaffolding = config.scaffolding,
+    minScaffolding = 16,
     remoteStorage = {
         item = "mekanism:quantum_entangloporter",
         getItems = function()

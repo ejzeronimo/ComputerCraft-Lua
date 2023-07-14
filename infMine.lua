@@ -229,9 +229,10 @@ SafeTurtle.setConfig({
 
                 while not turtle.dropUp() do
                     -- do nothing
+                    sleep(0)
                 end
 
-                if turtle.getFuelLevel() == turtle.getFuelLimit() then
+                if turtle.getFuelLevel() < (turtle.getFuelLimit() * (config.fuelThreshold * 1.1)) then
                     completeRequest()
                     success = true
                 else

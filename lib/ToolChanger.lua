@@ -63,8 +63,23 @@ local function __equipTool(tool)
         turtle.equipRight()
 
         if tool.select then
+            turtle.select(1)
+            --- @diagnostic disable-next-line: param-type-mismatch
+            turtle.transferTo(__config.getFreeSlot())
+
+            -- run after just in case
+            turtle.select(1)
+            --- @diagnostic disable-next-line: param-type-mismatch
+            turtle.transferTo(__config.getFreeSlot())
+
             itemSlot = __getItem(tool.select)
             turtle.select(itemSlot)
+
+            turtle.transferTo(1)
+            turtle.select(1)
+
+            -- sleep to let peripheral catch up
+            sleep(0)
         else
             turtle.select(oldSlot)
         end

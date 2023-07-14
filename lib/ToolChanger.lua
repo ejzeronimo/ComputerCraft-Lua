@@ -160,7 +160,7 @@ function ToolChanger.checkTool(tool, threshold)
     end
 
     ---@diagnostic disable-next-line: undefined-field
-    if data and data.damage < threshold then
+    if data and data.durability and data.durability < threshold then
         __config.getNewItem(data.name)
     end
 end

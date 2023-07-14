@@ -111,10 +111,12 @@ function TurtleMine.moveDown(w)
 end
 
 --- unique function meant to find the next chunk based off of current location
+--- @param v Vector the mining direction vector
 --- @param l number the length distance of the mining area
-function TurtleMine.moveToNextChunk(l)
+--- @param i Vector the number of iterations that have passed
+function TurtleMine.moveToNextChunk(v, l, i)
     -- local position of end point
-    local targetRelativePosition = vector.new(0, 0, 1) * l
+    local targetRelativePosition = v:mul(l * i)
 
     print("target is: " .. tostring(targetRelativePosition))
 
@@ -166,6 +168,13 @@ function TurtleMine.moveToNextChunk(l)
             zDifference = targetRelativePosition.z - __config.getCoordinate().position.z
         end
     end
+
+    -- rotate back to right direction and reset left turn
+    while __config.getCoordinate().direction.z ~= v.z and __config.getCoordinate().direction.x ~= v.x do
+        __config.movement.turnRight()
+    end
+
+    __isTurnLeft = false
 
     print("location is: " .. tostring(__config.getCoordinate()))
 end

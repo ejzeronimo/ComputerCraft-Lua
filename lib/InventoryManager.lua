@@ -116,7 +116,9 @@ function InventoryManager.emptyInventory()
             else
                 -- put it in the storage
                 turtle.select(j)
-                __config.remoteStorage.dropItem()
+                while not __config.remoteStorage.dropItem() do
+                    sleep(0)
+                end
             end
         end
     end

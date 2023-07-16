@@ -205,7 +205,7 @@ function SafeTurtle.dig()
     local present, data = turtle.inspect()
 
     -- if this is an ore and not ancient debris
-    if  __config.toolChanger.breakSilk and present and data.tags["forge:ores"] and data.name ~= "minecraft:ancient_debris" then
+    if  __config.toolChanger.breakSilk and present and data.tags["forge:ores"] and data.name ~= "minecraft:ancient_debris" and data.name == "minecraft:spawner" then
         return __config.toolChanger.breakSilk(data.name)
     end
 

@@ -262,7 +262,7 @@ SafeTurtle.setConfig({
                 ---@diagnostic disable-next-line: need-check-nil
                 result, err = pcall(auto.digBlock)
 
-                while not result do
+                while not result and not err do
                     ---@diagnostic disable-next-line: need-check-nil
                     result = pcall(auto.digBlock)
                 end

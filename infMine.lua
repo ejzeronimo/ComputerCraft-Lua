@@ -27,6 +27,7 @@ local DefaultConfig = {
         "minecraft:cobblestone",
         "minecraft:cobbled_deepslate",
         "minecraft:netherrack",
+        "minecraft:basalt",
         "biomesoplenty:flesh"
     },
     --- @type toolMap_t toolmap to use

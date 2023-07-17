@@ -168,11 +168,23 @@ InventoryManager.setConfig({
             }
         end,
         placeStorage = function()
-            ---@diagnostic disable-next-line: param-type-mismatch
-            turtle.select(InventoryManager.findItem("mekanism:quantum_entangloporter"))
-            return SafeTurtle.placeUp()
+            if turtle.inspectUp().name ~= "mekanism:quantum_entangloporter" then
+                ---@diagnostic disable-next-line: param-type-mismatch
+                turtle.select(InventoryManager.findItem("mekanism:quantum_entangloporter"))
+                return SafeTurtle.placeUp()
+            end
+
+            return true
         end,
-        breakStorage = SafeTurtle.digUp,
+        breakStorage = function()
+            local success = SafeTurtle.digUp()
+
+            if InventoryManager.findItem("mekanism:quantum_entangloporter") == nil then
+                printError("ERROR: Failed to pickup storage")
+            end
+
+            return success
+        end,
         dropItem = turtle.dropUp,
         suckItem = turtle.suckUp
     }

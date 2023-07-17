@@ -168,7 +168,9 @@ InventoryManager.setConfig({
             }
         end,
         placeStorage = function()
-            if turtle.inspectUp().name ~= "mekanism:quantum_entangloporter" then
+            local present, info = turtle.inspectUp()
+
+            if info.name ~= "mekanism:quantum_entangloporter" then
                 ---@diagnostic disable-next-line: param-type-mismatch
                 turtle.select(InventoryManager.findItem("mekanism:quantum_entangloporter"))
                 return SafeTurtle.placeUp()

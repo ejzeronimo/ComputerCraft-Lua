@@ -53,6 +53,7 @@ local __state = {
         position = vector.new(0, 0, 0),
         direction = vector.new(0, 0, 1)
     }),
+    globalCheckpoint = vector.new(0, 0, 0)
 }
 
 -- NOTE: private functions

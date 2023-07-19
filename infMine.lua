@@ -319,9 +319,6 @@ TurtleMine.setConfig({
     }
 })
 
-
-Telemetry.init(ToolChanger.equipStandardModem)
-
 -- NOTE: the final checks (things to run after configs set), pickup from a potentially dirty restart
 
 -- check for remoteStorage
@@ -350,6 +347,8 @@ for index, value in ipairs(config.tools) do
         os.exit()
     end
 end
+
+Telemetry.init(ToolChanger.equipStandardModem)
 
 -- if we are not a checkpoint, move to the last one we have
 if Telemetry.atCheckpoint(ToolChanger.equipStandardModem) then

@@ -137,24 +137,30 @@ end
 
 --- checks if the turtle is at the checkpoint
 --- @param equip equipModem_t
---- @return boolean result
+--- @return boolean globalResult
+--- @return boolean localPositionResult
+--- @return boolean localDirectionResult
 function Telemetry.atCheckpoint(equip)
     equip()
 
     ---@diagnostic disable-next-line: missing-parameter
     local x, y, z = gps.locate()
     local v = vector.new(x, y, z)
+    local gcp, lcpp, lcpd  = false, false, false
 
     -- if not in the same space
-    if not __state.globalCheckpoint:equals(v) then
-        return false
-    end
+    gcp = __state.globalCheckpoint:equals(v)
+    lcpp = __state.localCheckpoint.position:equals(__state.localCoord.position)
+    lcpd = __state.localCheckpoint.direction:equals(__state.localCoord.direction)
 
-    if not __state.localCheckpoint.position:equals(__state.localCoord.position) and __state.localCheckpoint.direction:equals(__state.localCoord.direction) then
-        return false
-    end
+    return gcp, lcpp, lcpd
+end
 
-    return true
+--- get the checkpoint
+--- @return Vector globalCheckpoint
+--- @return Telemetry.Coordinate localCheckpoint
+function Telemetry.getCheckpoint()
+    return __state.globalCheckpoint, __state.localCheckpoint
 end
 
 -- NOTE: public relative functions

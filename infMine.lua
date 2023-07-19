@@ -247,7 +247,7 @@ SafeTurtle.setConfig({
                     sleep(0)
                 end
 
-                if turtle.getFuelLevel() < (turtle.getFuelLimit() * (config.fuelThreshold * 1.1)) then
+                if turtle.getFuelLevel() >= (turtle.getFuelLimit() * (config.fuelThreshold * 1.1)) then
                     completeRequest()
                     success = true
                 else
@@ -319,7 +319,6 @@ TurtleMine.setConfig({
     }
 })
 
-
 Telemetry.init(ToolChanger.equipStandardModem)
 
 -- NOTE: the final checks (things to run after configs set), pickup from a potentially dirty restart
@@ -353,8 +352,23 @@ if InventoryManager.findItem("mekanism:quantum_entangloporter") == nil then
 end
 
 -- if we are not a checkpoint, move to the last one we have
-if not Telemetry.atCheckpoint(ToolChanger.equipStandardModem) then
+local gPos, lPos, lDir = Telemetry.atCheckpoint(ToolChanger.equipStandardModem)
+if not gPos and not lPos and notlDir then
     ToolChanger.equipStandardMine()
+
+    -- get the checkpoints
+    local gCheckpoint, lCheckpoint = Telemetry.getCheckpoint()
+
+    local yDifference = lCheckpoint.position.y - Telemetry.relative.getCoord().position.y
+    local xDifference = lCheckpoint.position.x - Telemetry.relative.getCoord().position.x
+    local zDifference = lCheckpoint.position.z - Telemetry.relative.getCoord().position.z
+
+    -- y first
+
+    -- rotate back to right direction and reset left turn
+    while Telemetry.relative.getCoord().direction.z ~= lCheckpoint.direction.z and Telemetry.relative.getCoord().direction.x ~= lCheckpoint.direction.x do
+        SafeTurtle.turnRight()
+    end
 
     print("whoops")
     return

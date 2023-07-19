@@ -130,7 +130,8 @@ function Telemetry.updateCheckpoint(equip)
     local x, y, z = gps.locate()
 
     __state.globalCheckpoint = vector.new(x, y, z)
-    __state.localCheckpoint = __state.localCoord
+    __state.localCheckpoint.position = __state.localCoord.position + vector.new(0,0,0)
+    __state.localCheckpoint.direction = __state.localCoord.direction + vector.new(0,0,0)
     __writeToState(__state)
 end
 

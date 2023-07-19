@@ -353,7 +353,7 @@ if InventoryManager.findItem("mekanism:quantum_entangloporter") == nil then
 end
 
 -- if we are not a checkpoint, move to the last one we have
-if Telemetry.atCheckpoint(ToolChanger.equipStandardModem) then
+if not Telemetry.atCheckpoint(ToolChanger.equipStandardModem) then
     ToolChanger.equipStandardMine()
 
     print("whoops")
@@ -377,7 +377,7 @@ print("Initial checks past")
 while true do
     ToolChanger.equipStandardModem()
     TurtleNet.client.sendCoordinate(Telemetry.relative.getCoord(), { gps.locate() })
-    Telemetry.updateCheckpoint(nil)
+    Telemetry.updateCheckpoint(function() end)
     ToolChanger.equipStandardMine()
 
     for h = 1, config.mine.position.y, 2 do

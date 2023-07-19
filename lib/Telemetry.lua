@@ -84,8 +84,7 @@ function Telemetry.init(equip)
         ---@diagnostic disable-next-line: missing-parameter
         local x, y, z = gps.locate()
 
-        __state.globalCheckpoint.position = vector.new(x, y, z)
-        __state.globalCheckpoint.direction = vector.new(0, 0, 0)
+        __state.globalCheckpoint = vector.new(x, y, z)
         __writeToState(__state)
     else
         handle = fs.open("./telemetry.json", "r")

@@ -24,6 +24,10 @@ local modem = peripheral.wrap("modem_1")
 --- @diagnostic disable-next-line: assign-type-mismatch
 local monitor = peripheral.wrap("monitor_3")
 
+--- @type Computer
+--- @diagnostic disable-next-line: assign-type-mismatch
+local localTurtle = peripheral.wrap("turtle_2")
+
 --- @type state_t
 local state = STATE.idle
 
@@ -96,6 +100,8 @@ term.redirect(monitor)
 
 print("server started")
 print("getting butler")
+
+localTurtle.reboot()
 
 -- get the butler
 repeat

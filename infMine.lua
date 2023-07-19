@@ -320,9 +320,46 @@ TurtleMine.setConfig({
 })
 
 
--- NOTE: the final checks (things to run after configs set)
+Telemetry.init(ToolChanger.equipStandardModem)
 
--- cycle tools as a test
+-- NOTE: the final checks (things to run after configs set), pickup from a potentially dirty restart
+
+-- check for remoteStorage
+if InventoryManager.findItem("mekanism:quantum_entangloporter") == nil then
+    local present, info = turtle.inspectUp()
+
+    if present and info.name ~= "mekanism:quantum_entangloporter" then
+        -- we don't have the remoteStorage
+        printError("ERROR: Missing remoteStorage")
+        os.exit()
+    elseif info.name == "mekanism:quantum_entangloporter" then
+        SafeTurtle.digUp()
+    end
+end
+
+-- check the inventory for all the tools we need
+for index, value in ipairs(config.tools) do
+    if InventoryManager.findItem(value.peripheral) ~= nil then
+        if value.select and InventoryManager.findItem(value.peripheral) == nil then
+            -- we are missing an item
+            printError("ERROR: Missing peripheral item")
+            os.exit()
+        end
+    else
+        printError("ERROR: Missing peripheral")
+        os.exit()
+    end
+end
+
+-- if we are not a checkpoint, move to the last one we have
+if Telemetry.atCheckpoint(ToolChanger.equipStandardModem) then
+    ToolChanger.equipStandardMine()
+
+    print("whoops")
+    os.exit()
+end
+
+-- cycle tools as a final test
 ToolChanger.equipTool(config.tools["weakAutomata"])
 print(ToolChanger.getCurrentTool())
 sleep(1)
@@ -339,6 +376,7 @@ print("Initial checks past")
 while true do
     ToolChanger.equipStandardModem()
     TurtleNet.client.sendCoordinate(Telemetry.relative.getCoord(), { gps.locate() })
+    Telemetry.updateCheckpoint(nil)
     ToolChanger.equipStandardMine()
 
     for h = 1, config.mine.position.y, 2 do

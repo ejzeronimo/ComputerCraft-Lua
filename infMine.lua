@@ -319,43 +319,45 @@ TurtleMine.setConfig({
     }
 })
 
+
+Telemetry.init(ToolChanger.equipStandardModem)
+
 -- NOTE: the final checks (things to run after configs set), pickup from a potentially dirty restart
+
+-- check the inventory for all the tools we need
+for _, value in pairs(config.tools) do
+    if InventoryManager.findItem(value.peripheral) ~= nil or ToolChanger.getCurrentTool() == value.peripheral then
+        if value.select ~= nil and InventoryManager.findItem(value.select) == nil then
+            -- we are missing an item
+            printError("ERROR: Missing peripheral item " .. value.select)
+            return
+        end
+    else
+        printError("ERROR: Missing peripheral " .. value.peripheral)
+        return
+    end
+end
 
 -- check for remoteStorage
 if InventoryManager.findItem("mekanism:quantum_entangloporter") == nil then
     local present, info = turtle.inspectUp()
 
-    if present and info.name ~= "mekanism:quantum_entangloporter" then
+    if (present and info.name ~= "mekanism:quantum_entangloporter") or not present then
         -- we don't have the remoteStorage
         printError("ERROR: Missing remoteStorage")
-        os.exit()
-    elseif info.name == "mekanism:quantum_entangloporter" then
+        return
+    elseif present and info.name == "mekanism:quantum_entangloporter" then
+        ToolChanger.equipStandardMine()
         SafeTurtle.digUp()
     end
 end
-
--- check the inventory for all the tools we need
-for index, value in ipairs(config.tools) do
-    if InventoryManager.findItem(value.peripheral) ~= nil then
-        if value.select and InventoryManager.findItem(value.peripheral) == nil then
-            -- we are missing an item
-            printError("ERROR: Missing peripheral item")
-            os.exit()
-        end
-    else
-        printError("ERROR: Missing peripheral")
-        os.exit()
-    end
-end
-
-Telemetry.init(ToolChanger.equipStandardModem)
 
 -- if we are not a checkpoint, move to the last one we have
 if Telemetry.atCheckpoint(ToolChanger.equipStandardModem) then
     ToolChanger.equipStandardMine()
 
     print("whoops")
-    os.exit()
+    return
 end
 
 -- cycle tools as a final test

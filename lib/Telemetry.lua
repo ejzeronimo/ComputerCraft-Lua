@@ -145,11 +145,11 @@ function Telemetry.atCheckpoint(equip)
     local v = vector.new(x, y, z)
 
     -- if not in the same space
-    if __state.globalCheckpoint ~= v then
+    if not __state.globalCheckpoint:equals(v) then
         return false
     end
 
-    if (__state.localCheckpoint.position ~= __state.localCoord.position) and (__state.localCheckpoint.direction ~= __state.localCoord.direction) then
+    if not __state.localCheckpoint.position:equals(__state.localCoord.position) and __state.localCheckpoint.direction:equals(__state.localCoord.direction) then
         return false
     end
 

@@ -6,7 +6,9 @@ local Telemetry = {
 
 -- NOTE: classes and types
 
---- @alias equipModem_t fun(): nil function that equips a modem for GPS
+--- @alias getGpsCoord_t fun(): Vector function that gets the current GPS position
+
+--- @alias getGpsDir_t fun(): Vector function that moves to calc the GPS direction
 
 --- @class Telemetry.Coordinate external facing coordinate class with constructor
 Telemetry.Coordinate = {
@@ -39,7 +41,7 @@ Telemetry.Coordinate = {
 --- @class telemetryState_t config for this module
 --- @field localCoord Telemetry.Coordinate coordinate relative to where the turtle was first placed
 --- @field localCheckpoint Telemetry.Coordinate most recent relative checkpoint made
---- @field globalCheckpoint Vector most recent real coordinate checkpoint made, should match local space checkpoint
+--- @field globalCheckpoint Telemetry.Coordinate most recent real coordinate checkpoint made, should match local space checkpoint
 
 -- NOTE: private variables
 
@@ -53,7 +55,10 @@ local __state = {
         position = vector.new(0, 0, 0),
         direction = vector.new(0, 0, 1)
     }),
-    globalCheckpoint = vector.new(0, 0, 0)
+    globalCheckpoint = Telemetry.Coordinate:new({
+        position = vector.new(0, 0, 0),
+        direction = vector.new(0, 0, 0)
+    })
 }
 
 -- NOTE: private functions
@@ -72,20 +77,19 @@ end
 -- NOTE: public universal functions
 
 --- function to start the telemetry module
---- @param equip equipModem_t
-function Telemetry.init(equip)
+--- @param getGlobalPos getGpsCoord_t function to get the GPS coords
+--- @param getGlobalDirection getGpsDir_t function to get the global direction Vector
+function Telemetry.init(getGlobalPos, getGlobalDirection)
     local handle, content
-    equip()
 
     -- check for an existing telemetry file
     if not fs.exists("./telemetry.json") then
         -- this MUST be first boot
         print("TELEM: Generating config")
 
-        ---@diagnostic disable-next-line: missing-parameter
-        local x, y, z = gps.locate()
+        __state.globalCheckpoint.position = getGlobalPos()
+        __state.globalCheckpoint.direction = getGlobalDirection()
 
-        __state.globalCheckpoint = vector.new(x, y, z)
         __writeToState(__state)
     else
         handle = fs.open("./telemetry.json", "r")
@@ -113,8 +117,10 @@ function Telemetry.init(equip)
                         result.localCheckpoint.position.y, result.localCheckpoint.position.z)
 
                     -- fix the global checkpoint vectors
-                    __state.globalCheckpoint = vector.new(result.globalCheckpoint.x,
-                        result.globalCheckpoint.y, result.globalCheckpoint.z)
+                    __state.globalCheckpoint.direction = vector.new(result.globalCheckpoint.direction.x,
+                        result.globalCheckpoint.direction.y, result.globalCheckpoint.direction.z)
+                    __state.globalCheckpoint.position = vector.new(result.globalCheckpoint.position.x,
+                        result.globalCheckpoint.position.y, result.globalCheckpoint.position.z)
                 end
             end
         end
@@ -122,45 +128,123 @@ function Telemetry.init(equip)
 end
 
 --- adds the turtle's current position as a checkpoint
---- @param equip equipModem_t
-function Telemetry.updateCheckpoint(equip)
-    equip()
+--- @param getGlobalPos getGpsCoord_t function to get the GPS coords
+function Telemetry.updateCheckpoint(getGlobalPos)
+    __state.globalCheckpoint.position = getGlobalPos()
 
-    ---@diagnostic disable-next-line: missing-parameter
-    local x, y, z = gps.locate()
-
-    __state.globalCheckpoint = vector.new(x, y, z)
-    __state.localCheckpoint.position = __state.localCoord.position + vector.new(0,0,0)
-    __state.localCheckpoint.direction = __state.localCoord.direction + vector.new(0,0,0)
+    __state.localCheckpoint.position = __state.localCoord.position + vector.new(0, 0, 0)
+    __state.localCheckpoint.direction = __state.localCoord.direction + vector.new(0, 0, 0)
     __writeToState(__state)
 end
 
 --- checks if the turtle is at the checkpoint
---- @param equip equipModem_t
---- @return boolean globalResult
+--- @param getGlobalPos getGpsCoord_t function to get the GPS coords
+--- @return boolean globalPositionResult
+--- @return boolean globalDirectionResult
 --- @return boolean localPositionResult
 --- @return boolean localDirectionResult
-function Telemetry.atCheckpoint(equip)
-    equip()
-
-    ---@diagnostic disable-next-line: missing-parameter
-    local x, y, z = gps.locate()
-    local v = vector.new(x, y, z)
-    local gcp, lcpp, lcpd  = false, false, false
+function Telemetry.atCheckpoint(getGlobalPos)
+    local globalCheckpointPos, globalCheckpointDir = false, false
+    local localCheckpointPos, localCheckpointDir   = false, false
 
     -- if not in the same space
-    gcp = __state.globalCheckpoint:equals(v)
-    lcpp = __state.localCheckpoint.position:equals(__state.localCoord.position)
-    lcpd = __state.localCheckpoint.direction:equals(__state.localCoord.direction)
+    globalCheckpointPos = __state.globalCheckpoint.position:equals(getGlobalPos())
+    localCheckpointPos = __state.localCheckpoint.position:equals(__state.localCoord.position)
+    localCheckpointDir = __state.localCheckpoint.direction:equals(__state.localCoord.direction)
 
-    return gcp, lcpp, lcpd
+    return globalCheckpointPos, false, localCheckpointPos, localCheckpointDir
 end
 
 --- get the checkpoint
 --- @return Vector globalCheckpoint
 --- @return Telemetry.Coordinate localCheckpoint
 function Telemetry.getCheckpoint()
-    return __state.globalCheckpoint, __state.localCheckpoint
+    return __state.globalCheckpoint.position, __state.localCheckpoint
+end
+
+-- tries to return to the checkpoint saved
+--- @param gpsPos getGpsCoord_t function to get the GPS coords
+--- @param up function move up
+--- @param down function move down
+--- @param left function turn left
+--- @param right function turn right
+--- @param forward function move forward
+--- @param back function move back
+function Telemetry.returnToCheckpoint(gpsPos, up, down, left, right, forward, back)
+    -- get the state of out checkpoints
+    local atGlobalPos, atGlobalDir, atLocalPos, atLocalDir = Telemetry.atCheckpoint(gpsPos)
+
+    local function moveToLocalCheckpoint()
+        -- local y first
+        local yDifference = __state.localCheckpoint.position.y - __state.localCoord.position.y
+
+        while yDifference ~= 0 do
+            if yDifference > 0 then
+                up()
+            else
+                down()
+            end
+
+            yDifference = __state.localCheckpoint.position.y - __state.localCoord.position.y
+        end
+
+        -- local x
+        local xDifference = __state.localCheckpoint.position.x - __state.localCoord.position.x
+        local xHeading = xDifference / (xDifference == 0 and 1 or math.abs(xDifference))
+
+        if xDifference ~= 0 then
+            -- need to get the heading and change it
+            while __state.localCoord.direction.x ~= xHeading do
+                left()
+            end
+
+            -- then make the move
+            while xDifference ~= 0 do
+                forward()
+
+                xDifference = __state.localCheckpoint.position.x - __state.localCoord.position.x
+            end
+        end
+
+        -- local z
+        local zDifference = __state.localCheckpoint.position.z - __state.localCoord.position.z
+        local zHeading = zDifference / (zDifference == 0 and 1 or math.abs(zDifference))
+
+        if zDifference ~= 0 then
+            -- need to get the heading and change it
+            while __state.localCoord.direction.z ~= zHeading do
+                right()
+            end
+
+            -- then make the move
+            while zDifference ~= 0 do
+                forward()
+
+                zDifference = __state.localCheckpoint.position.z - __state.localCoord.position.z
+            end
+        end
+    end
+
+    -- while all of our checkpoints dont match
+    while (not atGlobalPos) or (not atGlobalDir) or (not atLocalPos) or (not atLocalDir) do
+        if not atLocalPos then
+            -- do local position first
+            moveToLocalCheckpoint()
+        end
+
+        if not atLocalDir then
+            -- rotate back to right direction
+            repeat
+                right()
+            until __state.localCoord.direction.z == __state.localCheckpoint.direction.z and __state.localCoord.direction.x == __state.localCheckpoint.direction.x
+        end
+
+        -- TODO: need to find a way to get global position
+        -- calc global rotation
+        -- convert to local space
+        -- move to it
+        -- check
+    end
 end
 
 -- NOTE: public relative functions

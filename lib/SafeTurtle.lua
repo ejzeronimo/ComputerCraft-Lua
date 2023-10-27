@@ -131,12 +131,13 @@ function __move(m, d, t)
         return false, reason
     end
 
+    t()
+
     -- check fuel state
     if turtle.getFuelLevel() < (turtle.getFuelLimit() * __config.threshold) then
         __config.refuel()
     end
 
-    t()
     return true
 end
 

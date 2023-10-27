@@ -319,7 +319,32 @@ TurtleMine.setConfig({
     }
 })
 
-Telemetry.init(ToolChanger.equipStandardModem)
+Telemetry.init(function()
+        ToolChanger.equipStandardModem()
+
+        local x, y, z = gps.locate()
+
+        ToolChanger.equipStandardMine()
+
+        return vector.new(x, y, z)
+    end,
+    function()
+        local x, y, z, x2, y2, z2
+
+        -- get current position
+        ToolChanger.equipStandardModem()
+        local x2, y2, z2 = gps.locate()
+        ToolChanger.equipStandardMine()
+
+        SafeTurtle.back()
+
+        -- get current position
+        ToolChanger.equipStandardModem()
+        local x, y, z = gps.locate()
+        ToolChanger.equipStandardMine()
+
+        return vector.new(x2, y2, z2) - vector.new(x, y, z)
+    end)
 
 -- NOTE: the final checks (things to run after configs set), pickup from a potentially dirty restart
 
@@ -353,22 +378,25 @@ end
 
 -- if we are not a checkpoint, move to the last one we have
 local gPos, lPos, lDir = Telemetry.atCheckpoint(ToolChanger.equipStandardModem)
-if not gPos and not lPos and notlDir then
+if not gPos or not lPos or notlDir then
     ToolChanger.equipStandardMine()
 
-    -- get the checkpoints
-    local gCheckpoint, lCheckpoint = Telemetry.getCheckpoint()
+    Telemetry.returnToCheckpoint(function()
+            ToolChanger.equipStandardModem()
 
-    local yDifference = lCheckpoint.position.y - Telemetry.relative.getCoord().position.y
-    local xDifference = lCheckpoint.position.x - Telemetry.relative.getCoord().position.x
-    local zDifference = lCheckpoint.position.z - Telemetry.relative.getCoord().position.z
+            local x, y, z = gps.locate()
 
-    -- y first
+            ToolChanger.equipStandardMine()
 
-    -- rotate back to right direction and reset left turn
-    while Telemetry.relative.getCoord().direction.z ~= lCheckpoint.direction.z and Telemetry.relative.getCoord().direction.x ~= lCheckpoint.direction.x do
-        SafeTurtle.turnRight()
-    end
+            return x, y, z
+        end,
+        SafeTurtle.up,
+        SafeTurtle.down,
+        SafeTurtle.turnLeft,
+        SafeTurtle.turnRight,
+        SafeTurtle.forward,
+        SafeTurtle.back
+    )
 
     print("whoops")
     return
@@ -391,7 +419,7 @@ print("Initial checks past")
 while true do
     ToolChanger.equipStandardModem()
     TurtleNet.client.sendCoordinate(Telemetry.relative.getCoord(), { gps.locate() })
-    Telemetry.updateCheckpoint(function() end)
+    Telemetry.updateCheckpoint(gps.locate)
     ToolChanger.equipStandardMine()
 
     for h = 1, config.mine.position.y, 2 do

@@ -151,7 +151,7 @@ function TurtleMine.moveToNextChunk(v, l, i)
         end
     end
 
-    -- move in the X direction now
+    -- move in the Z direction now
     local zDifference = targetRelativePosition.z - __config.getCoordinate().position.z
     local zHeading = zDifference / (zDifference == 0 and 1 or zDifference)
 

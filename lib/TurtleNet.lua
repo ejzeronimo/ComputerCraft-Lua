@@ -44,7 +44,7 @@ TurtleNet.REQUEST_TYPE = {
 --- @class turtleNetConfig_t config for this library
 --- @field getModem getModem_t function to get the modem
 --- @field channel channel_t channel for turtlenet to use
---- @field server turtleNetServerConfig_t server exclusive config
+--- @field server? turtleNetServerConfig_t server exclusive config
 
 --- @class TurtleNet.Message external facing message class with constructor
 TurtleNet.Message = {

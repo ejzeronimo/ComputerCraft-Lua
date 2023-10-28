@@ -35,10 +35,6 @@ local DefaultConfig = {
         ["modem"] = {
             peripheral = "computercraft:wireless_modem_advanced"
         },
-        ["weakAutomata"] = {
-            peripheral = "advancedperipherals:weak_automata_core",
-            select = "minecraft:netherite_pickaxe"
-        },
         standardMine = {
             peripheral = "minecraft:diamond_pickaxe",
         }
@@ -105,74 +101,33 @@ ToolChanger.setConfig({
     toolMap = config.tools,
     getFreeSlot = InventoryManager.getFreeSlot,
     getNewItem = function(n)
-        -- really this function is only for the netherite pickaxe
-        if n ~= "minecraft:netherite_pickaxe" then
-            return
-        end
-
-        InventoryManager.getNewItem(n, function(get, suck)
-            local valid, refreshRequest, completeRequest = TurtleNet.client.requestToolRepair()
-            local items = get()
-            local success = false
-            local info
-
-            -- while request we cannot
-            while not valid do
-                valid, refreshRequest, completeRequest = refreshRequest()
-                sleep(0)
-            end
-
-            while not success do
-                while items[1].nbt == nil or items[1].nbt.Damage == nil do
-                    items = get()
-                    sleep(0)
-                end
-
-                if items[1].nbt.Damage == 0 and items[1].name == n then
-                    suck()
-                end
-
-                info = turtle.getItemDetail(InventoryManager.findItem(n))
-
-                if info then
-                    completeRequest()
-                    success = true
-                else
-                    sleep(5)
-                end
-            end
-
-            ToolChanger.equipStandardMine()
-            return success
-        end)
+        -- we don't need this function with this usecase
     end
 })
 
 InventoryManager.setConfig({
     blacklist = {
         "computercraft:wireless_modem_advanced",
-        "advancedperipherals:weak_automata_core",
         "minecraft:diamond_pickaxe",
-        "minecraft:netherite_pickaxe"
+        "enderstorage:ender_chest"
     },
     scaffolding = config.scaffolding,
     minScaffolding = 16,
     remoteStorage = {
-        item = "mekanism:quantum_entangloporter",
+        item = "enderstorage:ender_chest",
         getItems = function()
+            ---@as Inventory
             local storage = peripheral.wrap("top")
 
-            return {
-                ---@diagnostic disable-next-line: need-check-nil
-                [1] = storage.getBufferItem()
-            }
+            ---@diagnostic disable-next-line: need-check-nil
+            return storage.list();
         end,
         placeStorage = function()
             local present, info = turtle.inspectUp()
 
-            if info.name ~= "mekanism:quantum_entangloporter" then
+            if info.name ~= "enderstorage:ender_chest" then
                 ---@diagnostic disable-next-line: param-type-mismatch
-                turtle.select(InventoryManager.findItem("mekanism:quantum_entangloporter"))
+                turtle.select(InventoryManager.findItem("enderstorage:ender_chest"))
                 return SafeTurtle.placeUp()
             end
 
@@ -181,7 +136,7 @@ InventoryManager.setConfig({
         breakStorage = function()
             local success = SafeTurtle.digUp()
 
-            if InventoryManager.findItem("mekanism:quantum_entangloporter") == nil then
+            if InventoryManager.findItem("enderstorage:ender_chest") == nil then
                 printError("ERROR: Failed to pickup storage")
             end
 
@@ -196,56 +151,30 @@ InventoryManager.setConfig({
 SafeTurtle.setConfig({
     threshold = config.fuelThreshold,
     refuel = function()
-        InventoryManager.getNewItem("mekanism:energy_tablet", function(get, suck)
+        InventoryManager.getNewItem("quark:charcoal_block", function(get, suck)
             local valid, refreshRequest, completeRequest = TurtleNet.client.requestEnergyRefill()
             local items = get()
             local success = false
-            local info
 
-            -- while request we cannot
+            -- while we cannot request
             while not valid do
                 valid, refreshRequest, completeRequest = refreshRequest()
                 sleep(0)
             end
 
             while not success do
-                while items[1].nbt == nil or items[1].nbt.mekData == nil or items[1].nbt.mekData.EnergyContainers[0] == nil or items[1].nbt.mekData.EnergyContainers[0].stored == nil do
+                while items[1].name ~= "quark:charcoal_block" do
                     items = get()
                     sleep(0)
                 end
 
-                if items[1].nbt.mekData.EnergyContainers[0].stored == "1000000" and items[1].name == "mekanism:energy_tablet" then
+                if items[1].name == "quark:charcoal_block" then
                     suck()
                 end
 
-                info = turtle.getItemDetail(InventoryManager.findItem("mekanism:energy_tablet"))
-
-                -- use the tablet to refuel
-                if info and ToolChanger.equipTool(config.tools["weakAutomata"]) then
-                    local recharge = peripheral.wrap("right")
-                    local curCharge = turtle.getFuelLevel()
-
-                    --- @diagnostic disable-next-line: param-type-mismatch
-                    turtle.select(InventoryManager.findItem("mekanism:energy_tablet"))
-
-                    --- @diagnostic disable undefined-field
-                    while turtle.getFuelLevel() < (turtle.getFuelLimit() * (config.fuelThreshold * 1.1)) and (recharge and recharge.chargeTurtle) do
-                        curCharge = turtle.getFuelLevel()
-                        recharge.chargeTurtle()
-                        --- @diagnostic enable: undefined-field
-
-                        if curCharge == turtle.getFuelLevel() then
-                            -- DEBUG: this is not always putting up spent tablets
-                            -- ran out of charge, get a new unit
-                            break
-                        end
-                    end
-                end
-
-                while not turtle.dropUp() do
-                    -- do nothing
-                    sleep(0)
-                end
+                --- @diagnostic disable-next-line: param-type-mismatch
+                turtle.select(InventoryManager.findItem("quark:charcoal_block"))
+                turtle.refuel()
 
                 if turtle.getFuelLevel() >= (turtle.getFuelLimit() * (config.fuelThreshold * 1.1)) then
                     completeRequest()
@@ -261,35 +190,7 @@ SafeTurtle.setConfig({
     end,
     getEmptySlot = InventoryManager.getFreeSlot,
     toolChanger = {
-        selectScaffold = ToolChanger.selectScaffold,
-        breakSilk = function(name)
-            local result, err, auto
-
-            -- make sure we have a free spot
-            InventoryManager.getFreeSlot()
-            ToolChanger.checkTool(config.tools["weakAutomata"], .1);
-
-            -- try to equip the silk mine
-            if ToolChanger.equipTool(config.tools["weakAutomata"]) then
-                auto = peripheral.wrap("right")
-
-                -- HACK: workaround to get digBlock to work()
-                ---@diagnostic disable-next-line: need-check-nil
-                result, err = pcall(auto.digBlock)
-
-                while not result and not err do
-                    ---@diagnostic disable-next-line: need-check-nil
-                    result = pcall(auto.digBlock)
-                end
-
-                ---@diagnostic disable-next-line: need-check-nil
-                result = result and auto.collectSpecificItem(name)
-
-                ToolChanger.equipStandardMine();
-            end
-
-            return result
-        end
+        selectScaffold = ToolChanger.selectScaffold
     },
     telemetry = {
         forward = Telemetry.relative.forward,
@@ -322,7 +223,7 @@ TurtleMine.setConfig({
 Telemetry.init(function()
         ToolChanger.equipStandardModem()
 
-        local x, y, z = gps.locate()
+        local x, y, z = gps.locate(2, false)
 
         ToolChanger.equipStandardMine()
 
@@ -333,14 +234,14 @@ Telemetry.init(function()
 
         -- get current position
         ToolChanger.equipStandardModem()
-        local x2, y2, z2 = gps.locate()
+        x2, y2, z2 = gps.locate(2, false)
         ToolChanger.equipStandardMine()
 
         SafeTurtle.back()
 
         -- get current position
         ToolChanger.equipStandardModem()
-        local x, y, z = gps.locate()
+        x, y, z = gps.locate(2, false)
         ToolChanger.equipStandardMine()
 
         return vector.new(x2, y2, z2) - vector.new(x, y, z)
@@ -363,32 +264,42 @@ for _, value in pairs(config.tools) do
 end
 
 -- check for remoteStorage
-if InventoryManager.findItem("mekanism:quantum_entangloporter") == nil then
+if InventoryManager.findItem("enderstorage:ender_chest") == nil then
     local present, info = turtle.inspectUp()
 
-    if (present and info.name ~= "mekanism:quantum_entangloporter") or not present then
+    if (present and info.name ~= "enderstorage:ender_chest") or not present then
         -- we don't have the remoteStorage
         printError("ERROR: Missing remoteStorage")
         return
-    elseif present and info.name == "mekanism:quantum_entangloporter" then
+    elseif present and info.name == "enderstorage:ender_chest" then
         ToolChanger.equipStandardMine()
         SafeTurtle.digUp()
     end
 end
 
 -- if we are not a checkpoint, move to the last one we have
-local gPos, lPos, lDir = Telemetry.atCheckpoint(ToolChanger.equipStandardModem)
-if not gPos or not lPos or notlDir then
+
+local gPos, lPos, lDir = Telemetry.atCheckpoint(function()
+    ToolChanger.equipStandardModem()
+
+    local x, y, z = gps.locate(2, false)
+
+    ToolChanger.equipStandardMine()
+
+    return vector.new(x, y, z)
+end)
+
+if not gPos or not lPos or not lDir then
     ToolChanger.equipStandardMine()
 
     Telemetry.returnToCheckpoint(function()
             ToolChanger.equipStandardModem()
 
-            local x, y, z = gps.locate()
+            local x, y, z = gps.locate(2, false)
 
             ToolChanger.equipStandardMine()
 
-            return x, y, z
+            return vector.new(x, y, z)
         end,
         SafeTurtle.up,
         SafeTurtle.down,
@@ -403,9 +314,6 @@ if not gPos or not lPos or notlDir then
 end
 
 -- cycle tools as a final test
-ToolChanger.equipTool(config.tools["weakAutomata"])
-print(ToolChanger.getCurrentTool())
-sleep(1)
 ToolChanger.equipStandardModem()
 print(ToolChanger.getCurrentTool())
 sleep(1)
@@ -418,7 +326,7 @@ print("Initial checks past")
 -- until we get the stop message
 while true do
     ToolChanger.equipStandardModem()
-    TurtleNet.client.sendCoordinate(Telemetry.relative.getCoord(), { gps.locate() })
+    TurtleNet.client.sendCoordinate(Telemetry.relative.getCoord(), { gps.locate(2, false) })
     Telemetry.updateCheckpoint(gps.locate)
     ToolChanger.equipStandardMine()
 
@@ -456,4 +364,4 @@ end
 
 -- NOTE: after the stop message was received
 ToolChanger.equipStandardModem()
-TurtleNet.client.sendCoordinate(Telemetry.relative.getCoord(), { gps.locate() })
+TurtleNet.client.sendCoordinate(Telemetry.relative.getCoord(), { gps.locate(2, false) })

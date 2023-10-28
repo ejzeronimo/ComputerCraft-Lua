@@ -18,15 +18,15 @@ local STATE = {
 
 --- @type Modem
 --- @diagnostic disable-next-line: assign-type-mismatch
-local modem = peripheral.wrap("modem_1")
+local modem = peripheral.wrap("top")
 
 --- @type Monitor
 --- @diagnostic disable-next-line: assign-type-mismatch
-local monitor = peripheral.wrap("monitor_3")
+local monitor = peripheral.wrap("monitor_0")
 
 --- @type Computer
 --- @diagnostic disable-next-line: assign-type-mismatch
-local localTurtle = peripheral.wrap("turtle_2")
+local localTurtle = peripheral.wrap("turtle_0")
 
 --- @type state_t
 local state = STATE.idle

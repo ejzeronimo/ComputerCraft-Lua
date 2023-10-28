@@ -27,6 +27,12 @@
 local args = { ... }
 
 local application = args[1]
+local branch = args[2]
+
+-- default to master branch just in case
+if branch == nil then
+    branch = "master"
+end
 
 -- generate the startup script
 if not fs.exists("./startup.lua") then
@@ -34,7 +40,7 @@ if not fs.exists("./startup.lua") then
     local file = fs.open("./startup.lua", "w")
 
     ---@diagnostic disable: need-check-nil
-    file.write('shell.run("./bootloader.lua ' .. application .. '")')
+    file.write('shell.run("./bootloader.lua ' .. application .. ' ' .. branch .. '")')
     file.close()
     ---@diagnostic enable: need-check-nil
 
@@ -42,7 +48,7 @@ if not fs.exists("./startup.lua") then
 end
 
 -- download all the libs
-local rawRequest = http.get("https://api.github.com/repos/ejzeronimo/cc-lua/contents/lib")
+local rawRequest = http.get("https://api.github.com/repos/ejzeronimo/cc-lua/contents/lib/?ref=" .. branch)
 --- @diagnostic disable-next-line: need-check-nil
 local requestData = rawRequest.readAll()
 
@@ -75,7 +81,8 @@ end
 if application then
     -- now that the libs are downloaded we can run our application
     if not fs.exists("./" .. application .. ".lua") then
-        rawRequest = http.get("https://api.github.com/repos/ejzeronimo/cc-lua/contents/" .. application .. ".lua")
+        rawRequest = http.get("https://api.github.com/repos/ejzeronimo/cc-lua/contents/" ..
+        application .. ".lua/?ref=" .. branch)
         --- @diagnostic disable-next-line: need-check-nil
         requestData = rawRequest.readAll()
 

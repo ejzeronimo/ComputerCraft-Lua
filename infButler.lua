@@ -18,15 +18,17 @@ local STATE = {
 --- @type butlerState_t
 local state = STATE.idle
 
-local quantumStorage = peripheral.wrap("front")
+--- @type Inventory
+--- @diagnostic disable-next-line: assign-type-mismatch
+local remoteChest = peripheral.wrap("front")
 
 --- @type Inventory
 --- @diagnostic disable-next-line: assign-type-mismatch
-local aboveChest = peripheral.wrap("ironchest:crystal_chest_1")
+local inputChest = peripheral.wrap("top")
 
 --- @type Inventory
 --- @diagnostic disable-next-line: assign-type-mismatch
-local outputChest = peripheral.wrap("minecraft:chest_1")
+local outputChest = peripheral.wrap("bottom")
 
 --- @type TurtleNet.Message
 local msg
@@ -84,103 +86,32 @@ local function runSorter()
 
     while true do
         if st == STATE.toolRepair then
-            -- turn ejecting off
-            --- @diagnostic disable: need-check-nil
-            if quantumStorage.isEjecting("item") then
-                quantumStorage.setEjecting("item", false)
-                --- @diagnostic enable: need-check-nil
-            end
-
-            -- empty buffer until there is nothing
-            --- @diagnostic disable-next-line: need-check-nil
-            local item = quantumStorage.getBufferItem()
-
-            if item.name == "minecraft:netherite_pickaxe" and (item.nbt ~= nil and item.nbt.Damage ~= nil) and item.nbt.Damage == 0 then
-                -- do nothing
-                sleep(1)
-
-                --- @diagnostic disable-next-line: need-check-nil
-                item = quantumStorage.getBufferItem()
-
-                if item.name == "minecraft:netherite_pickaxe" then
-                    turtle.select(1)
-                    turtle.dropDown()
-
-                    turtle.suck()
-                    turtle.dropDown()
-                end
-            elseif item.count == 0 then
-                -- add a pickaxe
-                local items = aboveChest.list()
-
-                for i, v in pairs(items) do
-                    -- if the item is a netherite pickaxe
-                    if v.name == "minecraft:netherite_pickaxe" then
-                        -- move to the other chest
-                        aboveChest.pushItems(peripheral.getName(outputChest), i)
-                        break
-                    end
-                end
-            else
-                turtle.select(1)
-                turtle.dropDown()
-
-                turtle.suck()
-                turtle.dropDown()
-            end
+            -- do nothing
         elseif st == STATE.refueling then
-            -- turn ejecting off
-            --- @diagnostic disable: need-check-nil
-            if quantumStorage.isEjecting("item") then
-                quantumStorage.setEjecting("item", false)
-                --- @diagnostic enable: need-check-nil
-            end
-
             -- empty buffer until there is nothing
             --- @diagnostic disable-next-line: need-check-nil
-            local item = quantumStorage.getBufferItem()
+            local remoteItems = remoteChest.list()
 
-            if item.name == "mekanism:energy_tablet" and (item.nbt ~= nil and item.nbt.mekData ~= nil and item.nbt.mekData.EnergyContainers[0] ~= nil and item.nbt.mekData.EnergyContainers[0].stored ~= nil) and item.nbt.mekData.EnergyContainers[0].stored == "1000000" then
+            if remoteItems[1].name == "quark:charcoal_block" and remoteItems[1].count == 64 then
                 -- do nothing
                 sleep(1)
-
-                --- @diagnostic disable-next-line: need-check-nil
-                item = quantumStorage.getBufferItem()
-
-                if item.name == "mekanism:energy_tablet" then
-                    turtle.select(1)
-                    turtle.dropDown()
-
-                    turtle.suck()
-                    turtle.dropDown()
-                end
-            elseif item.count == 0 then
-                -- add a cell
-                local items = aboveChest.list()
+            elseif remoteItems[1].name ~= nil then
+                -- remove stack there and replace with coal
+                remoteChest.pushItems(peripheral.getName(outputChest), 1)
+            else
+                -- if there are no blocks there, add blocks
+                local items = inputChest.list()
 
                 for i, v in pairs(items) do
                     -- if the item is a cell
-                    if v.name == "mekanism:energy_tablet" then
+                    if v.name == "quark:charcoal_block" then
                         -- move to the other chest
-                        aboveChest.pushItems(peripheral.getName(outputChest), i)
+                        inputChest.pushItems(peripheral.getName(remoteChest), i)
                         break
                     end
                 end
-            else
-                turtle.select(1)
-                turtle.dropDown()
-
-                turtle.suck()
-                turtle.dropDown()
             end
         elseif st == STATE.idle then
-            -- turn ejecting on
-            --- @diagnostic disable: need-check-nil
-            if not quantumStorage.isEjecting("item") then
-                quantumStorage.setEjecting("item", true)
-                --- @diagnostic enable: need-check-nil
-            end
-
             -- empty inventory
             for i = 1, 16, 1 do
                 count = turtle.getItemCount(i)

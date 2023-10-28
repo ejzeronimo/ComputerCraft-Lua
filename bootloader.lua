@@ -2,6 +2,8 @@
     This downloads from GitHub the correct application and all Lib files
 
     Pastebin link: https://pastebin.com/SX7mYFmk
+
+    CC command: pastebin get SX7mYFmk bootloader.lua
 --]]
 
 -- NOTE: types

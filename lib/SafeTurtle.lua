@@ -161,13 +161,13 @@ end
 --- @return string|nil errorMessage the reason no move was made
 function SafeTurtle.back()
     local function d()
-        SafeTurtle.right()
-        SafeTurtle.right()
+        SafeTurtle.turnRight()
+        SafeTurtle.turnRight()
 
         SafeTurtle.dig()
 
-        SafeTurtle.right()
-        SafeTurtle.right()
+        SafeTurtle.turnRight()
+        SafeTurtle.turnRight()
     end
 
     return __move(turtle.back, d, __config.telemetry.back)

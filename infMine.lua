@@ -163,18 +163,18 @@ SafeTurtle.setConfig({
             end
 
             while not success do
-                while items[1].name ~= "quark:charcoal_block" do
+                while items ~= nil and items[1] ~= nil and items[1].name ~= "quark:charcoal_block" do
                     items = get()
                     sleep(0)
                 end
 
-                if items[1].name == "quark:charcoal_block" then
+                if items ~= nil and items[1] ~= nil and items[1].name == "quark:charcoal_block" then
                     suck()
-                end
 
-                --- @diagnostic disable-next-line: param-type-mismatch
-                turtle.select(InventoryManager.findItem("quark:charcoal_block"))
-                turtle.refuel()
+                    --- @diagnostic disable-next-line: param-type-mismatch
+                    turtle.select(InventoryManager.findItem("quark:charcoal_block"))
+                    turtle.refuel()
+                end
 
                 if turtle.getFuelLevel() >= (turtle.getFuelLimit() * (config.fuelThreshold * 1.1)) then
                     completeRequest()
@@ -222,12 +222,7 @@ TurtleMine.setConfig({
 
 Telemetry.init(function()
         ToolChanger.equipStandardModem()
-
-        local x, y, z = gps.locate(2, false)
-
-        ToolChanger.equipStandardMine()
-
-        return vector.new(x, y, z)
+        return vector.new(gps.locate(2, false))
     end,
     function()
         local x, y, z, x2, y2, z2
@@ -235,14 +230,14 @@ Telemetry.init(function()
         -- get current position
         ToolChanger.equipStandardModem()
         x2, y2, z2 = gps.locate(2, false)
-        ToolChanger.equipStandardMine()
 
         SafeTurtle.back()
 
         -- get current position
         ToolChanger.equipStandardModem()
         x, y, z = gps.locate(2, false)
-        ToolChanger.equipStandardMine()
+
+        SafeTurtle.forward()
 
         return vector.new(x2, y2, z2) - vector.new(x, y, z)
     end)
@@ -278,28 +273,51 @@ if InventoryManager.findItem("enderstorage:ender_chest") == nil then
 end
 
 -- if we are not a checkpoint, move to the last one we have
+local gPos, gDir, lPos, lDir = Telemetry.atCheckpoint(function()
+        ToolChanger.equipStandardModem()
+        return vector.new(gps.locate(2, false))
+    end,
+    function()
+        local x, y, z, x2, y2, z2
 
-local gPos, lPos, lDir = Telemetry.atCheckpoint(function()
-    ToolChanger.equipStandardModem()
+        -- get current position
+        ToolChanger.equipStandardModem()
+        x2, y2, z2 = gps.locate(2, false)
 
-    local x, y, z = gps.locate(2, false)
+        SafeTurtle.back()
 
-    ToolChanger.equipStandardMine()
+        -- get current position
+        ToolChanger.equipStandardModem()
+        x, y, z = gps.locate(2, false)
 
-    return vector.new(x, y, z)
-end)
+        SafeTurtle.forward()
 
-if not gPos or not lPos or not lDir then
+        return vector.new(x2, y2, z2) - vector.new(x, y, z)
+    end)
+
+if (not gPos) or (not gDir) or (not lPos) or (not lDir) then
     ToolChanger.equipStandardMine()
 
     Telemetry.returnToCheckpoint(function()
             ToolChanger.equipStandardModem()
+            return vector.new(gps.locate(2, false))
+        end,
+        function()
+            local x, y, z, x2, y2, z2
 
-            local x, y, z = gps.locate(2, false)
+            -- get current position
+            ToolChanger.equipStandardModem()
+            x2, y2, z2 = gps.locate(2, false)
 
-            ToolChanger.equipStandardMine()
+            SafeTurtle.back()
 
-            return vector.new(x, y, z)
+            -- get current position
+            ToolChanger.equipStandardModem()
+            x, y, z = gps.locate(2, false)
+
+            SafeTurtle.forward()
+
+            return vector.new(x2, y2, z2) - vector.new(x, y, z)
         end,
         SafeTurtle.up,
         SafeTurtle.down,
@@ -308,9 +326,6 @@ if not gPos or not lPos or not lDir then
         SafeTurtle.forward,
         SafeTurtle.back
     )
-
-    print("whoops")
-    return
 end
 
 -- cycle tools as a final test
@@ -327,7 +342,9 @@ print("Initial checks past")
 while true do
     ToolChanger.equipStandardModem()
     TurtleNet.client.sendCoordinate(Telemetry.relative.getCoord(), { gps.locate(2, false) })
-    Telemetry.updateCheckpoint(gps.locate)
+    Telemetry.updateCheckpoint(function()
+        return vector.new(gps.locate(2, false))
+    end)
     ToolChanger.equipStandardMine()
 
     for h = 1, config.mine.position.y, 2 do

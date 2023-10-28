@@ -92,10 +92,10 @@ local function runSorter()
             --- @diagnostic disable-next-line: need-check-nil
             local remoteItems = remoteChest.list()
 
-            if remoteItems[1].name == "quark:charcoal_block" and remoteItems[1].count == 64 then
+            if remoteItems ~= nil and remoteItems[1] ~= nil and remoteItems[1].name == "quark:charcoal_block" and remoteItems[1].count == 64 then
                 -- do nothing
                 sleep(1)
-            elseif remoteItems[1].name ~= nil then
+            elseif remoteItems ~= nil and remoteItems[1] ~= nil and remoteItems[1].name ~= nil then
                 -- remove stack there and replace with coal
                 remoteChest.pushItems(peripheral.getName(outputChest), 1)
             else

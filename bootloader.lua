@@ -2,6 +2,8 @@
     This downloads from GitHub the correct application and all Lib files
 
     Pastebin link: https://pastebin.com/SX7mYFmk
+
+    CC command: pastebin get SX7mYFmk bootloader.lua
 --]]
 
 -- NOTE: types
@@ -48,7 +50,7 @@ if not fs.exists("./startup.lua") then
 end
 
 -- download all the libs
-local rawRequest = http.get("https://api.github.com/repos/ejzeronimo/cc-lua/contents/lib/?ref=" .. branch)
+local rawRequest = http.get("https://api.github.com/repos/ejzeronimo/cc-lua/contents/lib?ref=" .. branch)
 --- @diagnostic disable-next-line: need-check-nil
 local requestData = rawRequest.readAll()
 
@@ -82,7 +84,7 @@ if application then
     -- now that the libs are downloaded we can run our application
     if not fs.exists("./" .. application .. ".lua") then
         rawRequest = http.get("https://api.github.com/repos/ejzeronimo/cc-lua/contents/" ..
-        application .. ".lua/?ref=" .. branch)
+        application .. ".lua?ref=" .. branch)
         --- @diagnostic disable-next-line: need-check-nil
         requestData = rawRequest.readAll()
 

@@ -49,11 +49,11 @@ Telemetry.Coordinate = {
 local __state = {
     localCoord = Telemetry.Coordinate:new({
         position = vector.new(0, 0, 0),
-        direction = vector.new(0, 0, 1)
+        direction = vector.new(1, 0, 0)
     }),
     localCheckpoint = Telemetry.Coordinate:new({
         position = vector.new(0, 0, 0),
-        direction = vector.new(0, 0, 1)
+        direction = vector.new(1, 0, 0)
     }),
     globalCheckpoint = Telemetry.Coordinate:new({
         position = vector.new(0, 0, 0),
@@ -139,20 +139,22 @@ end
 
 --- checks if the turtle is at the checkpoint
 --- @param getGlobalPos getGpsCoord_t function to get the GPS coords
+--- @param getGlobalDirection getGpsDir_t function to get the global direction Vector
 --- @return boolean globalPositionResult
 --- @return boolean globalDirectionResult
 --- @return boolean localPositionResult
 --- @return boolean localDirectionResult
-function Telemetry.atCheckpoint(getGlobalPos)
+function Telemetry.atCheckpoint(getGlobalPos, getGlobalDirection)
     local globalCheckpointPos, globalCheckpointDir = false, false
     local localCheckpointPos, localCheckpointDir   = false, false
 
     -- if not in the same space
     globalCheckpointPos = __state.globalCheckpoint.position:equals(getGlobalPos())
+    globalCheckpointDir = __state.globalCheckpoint.direction:equals(getGlobalDirection())
     localCheckpointPos = __state.localCheckpoint.position:equals(__state.localCoord.position)
     localCheckpointDir = __state.localCheckpoint.direction:equals(__state.localCoord.direction)
 
-    return globalCheckpointPos, false, localCheckpointPos, localCheckpointDir
+    return globalCheckpointPos, globalCheckpointDir, localCheckpointPos, localCheckpointDir
 end
 
 --- get the checkpoint
@@ -164,15 +166,16 @@ end
 
 -- tries to return to the checkpoint saved
 --- @param gpsPos getGpsCoord_t function to get the GPS coords
+--- @param gpsDir getGpsDir_t function to get the GPS direction
 --- @param up function move up
 --- @param down function move down
 --- @param left function turn left
 --- @param right function turn right
 --- @param forward function move forward
 --- @param back function move back
-function Telemetry.returnToCheckpoint(gpsPos, up, down, left, right, forward, back)
+function Telemetry.returnToCheckpoint(gpsPos, gpsDir, up, down, left, right, forward, back)
     -- get the state of out checkpoints
-    local atGlobalPos, atGlobalDir, atLocalPos, atLocalDir = Telemetry.atCheckpoint(gpsPos)
+    local atGlobalPos, atGlobalDir, atLocalPos, atLocalDir = Telemetry.atCheckpoint(gpsPos, gpsDir)
 
     local function moveToLocalCheckpoint()
         -- local y first
@@ -186,6 +189,7 @@ function Telemetry.returnToCheckpoint(gpsPos, up, down, left, right, forward, ba
             end
 
             yDifference = __state.localCheckpoint.position.y - __state.localCoord.position.y
+            sleep(0)
         end
 
         -- local x
@@ -196,6 +200,7 @@ function Telemetry.returnToCheckpoint(gpsPos, up, down, left, right, forward, ba
             -- need to get the heading and change it
             while __state.localCoord.direction.x ~= xHeading do
                 left()
+                sleep(0)
             end
 
             -- then make the move
@@ -203,6 +208,7 @@ function Telemetry.returnToCheckpoint(gpsPos, up, down, left, right, forward, ba
                 forward()
 
                 xDifference = __state.localCheckpoint.position.x - __state.localCoord.position.x
+                sleep(0)
             end
         end
 
@@ -214,6 +220,7 @@ function Telemetry.returnToCheckpoint(gpsPos, up, down, left, right, forward, ba
             -- need to get the heading and change it
             while __state.localCoord.direction.z ~= zHeading do
                 right()
+                sleep(0)
             end
 
             -- then make the move
@@ -221,6 +228,7 @@ function Telemetry.returnToCheckpoint(gpsPos, up, down, left, right, forward, ba
                 forward()
 
                 zDifference = __state.localCheckpoint.position.z - __state.localCoord.position.z
+                sleep(0)
             end
         end
     end
@@ -236,14 +244,21 @@ function Telemetry.returnToCheckpoint(gpsPos, up, down, left, right, forward, ba
             -- rotate back to right direction
             repeat
                 right()
+                sleep(0)
             until __state.localCoord.direction.z == __state.localCheckpoint.direction.z and __state.localCoord.direction.x == __state.localCheckpoint.direction.x
         end
+
+        -- do a mid update
+        atGlobalPos, atGlobalDir, atLocalPos, atLocalDir = Telemetry.atCheckpoint(gpsPos, gpsDir)
+
+        -- at this point only the globals should be wrong
 
         -- TODO: need to find a way to get global position
         -- calc global rotation
         -- convert to local space
         -- move to it
         -- check
+        sleep(0)
     end
 end
 
